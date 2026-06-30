@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>武汉宠物友好地图</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero__content">
+          <p class="eyebrow">Wuhan pet-friendly finder</p>
+          <h1 id="page-title">武汉宠物友好地图</h1>
+          <p class="hero__summary">
+            输入地址，筛选 20 公里内可带狗的草坪、公园、江滩和商圈。每个地点都标注可信度、依据、电话和导航入口。
+          </p>
+        </div>
+        <form class="search-panel" id="search-form">
+          <label for="address">出发地址</label>
+          <div class="search-row">
+            <input
+              id="address"
+              name="address"
+              type="search"
+              value="武汉天地"
+              autocomplete="street-address"
+              placeholder="例如：武汉天地、汉口江滩、光谷"
+            />
+            <button type="submit">搜索</button>
+          </div>
+          <fieldset class="radius-group">
+            <legend>筛选半径</legend>
+            <label><input type="radio" name="radius" value="1" />1 km</label>
+            <label><input type="radio" name="radius" value="3" />3 km</label>
+            <label><input type="radio" name="radius" value="5" checked />5 km</label>
+            <label><input type="radio" name="radius" value="10" />10 km</label>
+            <label><input type="radio" name="radius" value="20" />20 km</label>
+          </fieldset>
+        </form>
+      </section>
+
+      <section class="toolbar" aria-label="地点类型">
+        <button class="filter-chip is-active" data-category="all">全部</button>
+        <button class="filter-chip" data-category="lawn">草坪/江滩</button>
+        <button class="filter-chip" data-category="park">公园/绿道</button>
+        <button class="filter-chip" data-category="mall">商圈/商场</button>
+      </section>
+
+      <section class="workspace">
+        <div class="map-panel" aria-label="武汉地图">
+          <div class="map-header">
+            <div>
+              <p class="section-kicker">地图视图</p>
+              <h2 id="result-title">武汉天地附近</h2>
+            </div>
+            <span class="result-count" id="result-count">0 个地点</span>
+          </div>
+          <div class="fallback-map" id="map">
+            <div class="river river--yangtze"></div>
+            <div class="river river--han"></div>
+            <div class="map-label map-label--hankou">汉口</div>
+            <div class="map-label map-label--wuchang">武昌</div>
+            <div class="map-label map-label--hanyang">汉阳</div>
+            <div class="origin-marker" id="origin-marker" title="出发点"></div>
+            <div class="marker-layer" id="marker-layer"></div>
+          </div>
+          <p class="map-note" id="map-note">
+            当前为静态预览地图；配置高德 Web Key 后可切换为真实地图和地理编码。
+          </p>
+        </div>
+
+        <aside class="results-panel" aria-label="地点列表">
+          <div class="results-list" id="results-list"></div>
+        </aside>
+      </section>
+    </main>
+
+    <dialog class="place-dialog" id="place-dialog">
+      <button class="dialog-close" id="dialog-close" aria-label="关闭">×</button>
+      <img id="dialog-image" alt="" />
+      <div class="dialog-body">
+        <p class="section-kicker" id="dialog-category"></p>
+        <h2 id="dialog-title"></h2>
+        <p id="dialog-evidence"></p>
+        <dl>
+          <div>
+            <dt>地址</dt>
+            <dd id="dialog-address"></dd>
+          </div>
+          <div>
+            <dt>电话</dt>
+            <dd id="dialog-phone"></dd>
+          </div>
+          <div>
+            <dt>更新时间</dt>
+            <dd id="dialog-updated"></dd>
+          </div>
+        </dl>
+        <div class="dialog-actions">
+          <a id="dialog-nav" target="_blank" rel="noreferrer">打开导航</a>
+          <button id="feedback-button">提交带狗反馈</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="src/placeLogic.js"></script>
+    <script src="src/wuhanPlaces.js"></script>
+    <script src="src/app.js"></script>
+  </body>
+</html>
