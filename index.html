@@ -13,7 +13,7 @@
           <p class="eyebrow">Wuhan pet-friendly finder</p>
           <h1 id="page-title">武汉宠物友好地图</h1>
           <p class="hero__summary">
-            输入地址，筛选 20 公里内可带狗的草坪、公园、江滩和商圈。每个地点都标注可信度、依据、电话和导航入口。
+            输入武汉地址，先选择酒店、草坪、公园、商场、餐饮或宠物服务，再查看 20 公里内的具体地点。
           </p>
         </div>
         <form class="search-panel" id="search-form">
@@ -44,7 +44,10 @@
         <button class="filter-chip is-active" data-category="all">全部</button>
         <button class="filter-chip" data-category="lawn">草坪/江滩</button>
         <button class="filter-chip" data-category="park">公园/绿道</button>
-        <button class="filter-chip" data-category="mall">商圈/商场</button>
+        <button class="filter-chip" data-category="mall">商场/商圈</button>
+        <button class="filter-chip" data-category="restaurant">餐饮/咖啡</button>
+        <button class="filter-chip" data-category="hotel">酒店/住宿</button>
+        <button class="filter-chip" data-category="pet">宠物服务</button>
       </section>
 
       <section class="workspace">
@@ -66,7 +69,11 @@
             <div class="marker-layer" id="marker-layer"></div>
           </div>
           <p class="map-note" id="map-note">
-            当前为静态预览地图；配置高德 Web Key 后可切换为真实地图和地理编码。
+            正在加载高德地图；如果加载失败，会自动切换为本地示例数据。
+          </p>
+          <p class="map-note map-note--debug">
+            部署后如无法加载，请在高德控制台确认 JS API Key 已允许
+            syoyo-ztoto.github.io 域名。
           </p>
         </div>
 
@@ -106,6 +113,8 @@
 
     <script src="src/placeLogic.js"></script>
     <script src="src/wuhanPlaces.js"></script>
+    <script src="src/amapConfig.js"></script>
+    <script src="src/amapClient.js"></script>
     <script src="src/app.js"></script>
   </body>
 </html>

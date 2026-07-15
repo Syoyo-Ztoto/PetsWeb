@@ -219,6 +219,10 @@ h1 {
     #eef4ed;
 }
 
+.fallback-map.is-real-map {
+  background: #e9eeea;
+}
+
 .river {
   position: absolute;
   background: rgba(68, 139, 189, 0.5);
@@ -301,6 +305,10 @@ h1 {
   margin: 12px 0 0;
   color: var(--muted);
   font-size: 13px;
+}
+
+.map-note--debug {
+  margin-top: 6px;
 }
 
 .results-panel {

@@ -1,10 +1,10 @@
 const WUHAN_DEFAULT_ORIGINS = {
-  "武汉天地": { lat: 30.6101, lng: 114.3048, label: "武汉天地附近" },
-  "汉口江滩": { lat: 30.6076, lng: 114.313, label: "汉口江滩附近" },
-  "光谷": { lat: 30.5065, lng: 114.4079, label: "光谷附近" },
-  "街道口": { lat: 30.5323, lng: 114.3507, label: "街道口附近" },
-  "武昌": { lat: 30.5534, lng: 114.315, label: "武昌附近" },
-  "汉阳": { lat: 30.5542, lng: 114.2656, label: "汉阳附近" },
+  武汉天地: { lat: 30.6101, lng: 114.3048, label: "武汉天地附近" },
+  汉口江滩: { lat: 30.6076, lng: 114.313, label: "汉口江滩附近" },
+  光谷: { lat: 30.5065, lng: 114.4079, label: "光谷附近" },
+  街道口: { lat: 30.5323, lng: 114.3507, label: "街道口附近" },
+  武昌: { lat: 30.5534, lng: 114.315, label: "武昌附近" },
+  汉阳: { lat: 30.5542, lng: 114.2656, label: "汉阳附近" },
 };
 
 const WUHAN_BOUNDS = {
@@ -14,11 +14,37 @@ const WUHAN_BOUNDS = {
   maxLng: 114.43,
 };
 
+const CATEGORY_KEYWORDS = {
+  all: [
+    "宠物友好",
+    "可带狗",
+    "草坪",
+    "江滩",
+    "公园",
+    "绿道",
+    "商场",
+    "咖啡",
+    "酒店",
+    "宠物服务",
+  ],
+  lawn: ["草坪", "江滩", "滨江", "绿地", "露营"],
+  park: ["公园", "绿道", "风景区"],
+  mall: ["商场", "商圈", "购物中心", "步行街", "商业街"],
+  restaurant: ["宠物友好咖啡", "可带狗餐厅", "咖啡", "西餐", "户外座位"],
+  hotel: ["宠物友好酒店", "可带狗酒店", "酒店", "民宿", "公寓酒店"],
+  pet: ["宠物服务", "宠物店", "宠物医院", "宠物美容", "宠物寄养"],
+};
+
 const state = {
   origin: WUHAN_DEFAULT_ORIGINS["武汉天地"],
   radiusKm: 5,
   category: "all",
-  places: window.WUHAN_PLACES,
+  places: window.WUHAN_PLACES || [],
+  localPlaces: window.WUHAN_PLACES || [],
+  useAmap: false,
+  isLoading: false,
+  realMapReady: false,
+  amapMarkers: [],
 };
 
 const elements = {
@@ -27,6 +53,8 @@ const elements = {
   resultTitle: document.querySelector("#result-title"),
   resultCount: document.querySelector("#result-count"),
   resultsList: document.querySelector("#results-list"),
+  map: document.querySelector("#map"),
+  mapNote: document.querySelector("#map-note"),
   markerLayer: document.querySelector("#marker-layer"),
   originMarker: document.querySelector("#origin-marker"),
   filterChips: Array.from(document.querySelectorAll(".filter-chip")),
@@ -43,7 +71,7 @@ const elements = {
   feedbackButton: document.querySelector("#feedback-button"),
 };
 
-function resolveOrigin(address) {
+function resolveLocalOrigin(address) {
   const normalized = address.trim();
   const matchedKey = Object.keys(WUHAN_DEFAULT_ORIGINS).find((key) =>
     normalized.includes(key)
@@ -80,7 +108,60 @@ function buildNavUrl(place) {
   return `https://uri.amap.com/search?keyword=${query}&center=${place.lng},${place.lat}`;
 }
 
-function renderMarkers(places) {
+function setLoading(isLoading, label) {
+  state.isLoading = isLoading;
+  elements.resultCount.textContent = isLoading
+    ? "搜索中..."
+    : label || elements.resultCount.textContent;
+}
+
+function setMapNote(message) {
+  elements.mapNote.textContent = message;
+}
+
+function clearAmapMarkers() {
+  if (!window.PetsAmap?.map) return;
+  state.amapMarkers.forEach((marker) => marker.setMap(null));
+  state.amapMarkers = [];
+}
+
+function renderRealMapMarkers(places) {
+  if (!window.PetsAmap?.map || !window.AMap) return false;
+
+  clearAmapMarkers();
+
+  const originMarker = new AMap.Marker({
+    position: [state.origin.lng, state.origin.lat],
+    title: "出发点",
+    label: { content: "出发点", direction: "top" },
+  });
+  originMarker.setMap(window.PetsAmap.map);
+  state.amapMarkers.push(originMarker);
+
+  places.forEach((place) => {
+    const marker = new AMap.Marker({
+      position: [place.lng, place.lat],
+      title: place.name,
+      label: {
+        content: PlaceLogic.getStatusLabel(place),
+        direction: "top",
+      },
+    });
+    marker.on("click", () => openDialog(place));
+    marker.setMap(window.PetsAmap.map);
+    state.amapMarkers.push(marker);
+  });
+
+  window.PetsAmap.map.setCenter([state.origin.lng, state.origin.lat]);
+  if (state.amapMarkers.length > 1) {
+    window.PetsAmap.map.setFitView(state.amapMarkers, false, [80, 80, 80, 80]);
+  }
+
+  return true;
+}
+
+function renderFallbackMarkers(places) {
+  if (!elements.markerLayer || !elements.originMarker) return;
   elements.markerLayer.replaceChildren();
 
   const originPosition = getPosition(state.origin);
@@ -101,8 +182,22 @@ function renderMarkers(places) {
   });
 }
 
+function renderMarkers(places) {
+  if (!renderRealMapMarkers(places)) {
+    renderFallbackMarkers(places);
+  }
+}
+
 function renderCards(places) {
   elements.resultsList.replaceChildren();
+
+  if (state.isLoading) {
+    const loading = document.createElement("div");
+    loading.className = "empty-state";
+    loading.textContent = "正在从高德搜索武汉附近地点...";
+    elements.resultsList.append(loading);
+    return;
+  }
 
   if (places.length === 0) {
     const empty = document.createElement("div");
@@ -118,6 +213,7 @@ function renderCards(places) {
     const tone = PlaceLogic.getConfidenceTone(place.confidence);
     const article = document.createElement("article");
     article.className = "place-card";
+    const tags = Array.isArray(place.tags) ? place.tags : [];
     article.innerHTML = `
       <img src="${place.image}" alt="${place.name}" loading="lazy" />
       <div class="place-card__body">
@@ -132,7 +228,7 @@ function renderCards(places) {
         </div>
         <p>${place.evidence}</p>
         <div class="tag-row">
-          ${place.tags.map((tag) => `<span class="tag">${tag}</span>`).join("")}
+          ${tags.map((tag) => `<span class="tag">${tag}</span>`).join("")}
         </div>
         <div class="card-actions">
           <button type="button" data-action="detail">查看详情</button>
@@ -150,18 +246,65 @@ function renderCards(places) {
   elements.resultsList.append(fragment);
 }
 
-function render() {
-  const places = PlaceLogic.filterPlaces(
+function getVisiblePlaces() {
+  return PlaceLogic.filterPlaces(
     state.places,
     state.origin,
     state.radiusKm,
     state.category
   );
+}
 
+function render() {
+  const places = getVisiblePlaces();
   elements.resultTitle.textContent = state.origin.label;
-  elements.resultCount.textContent = `${places.length} 个地点`;
+  if (!state.isLoading) {
+    elements.resultCount.textContent = `${places.length} 个地点`;
+  }
   renderMarkers(places);
   renderCards(places);
+}
+
+async function refreshPlacesFromAmap() {
+  if (!window.PetsAmap?.isReady()) {
+    state.places = state.localPlaces;
+    render();
+    return;
+  }
+
+  setLoading(true);
+  render();
+
+  try {
+    const keywords = CATEGORY_KEYWORDS[state.category] || CATEGORY_KEYWORDS.all;
+    const amapPlaces = await window.PetsAmap.searchNearbyPlaces({
+      origin: state.origin,
+      radiusKm: state.radiusKm,
+      keywords,
+    });
+
+    state.places = PlaceLogic.mergePlaces(state.localPlaces, amapPlaces);
+    state.useAmap = true;
+    setMapNote("已接入高德真实地图、地址解析和周边 POI；宠物政策仍需电话或用户反馈确认。");
+  } catch (error) {
+    console.error(error);
+    state.places = state.localPlaces;
+    setMapNote("高德实时搜索暂不可用，已切换为本地示例数据。请检查 Key、域名白名单和浏览器控制台。");
+  } finally {
+    setLoading(false);
+    render();
+  }
+}
+
+async function resolveOrigin(address) {
+  if (window.PetsAmap?.isReady()) {
+    try {
+      return await window.PetsAmap.geocodeAddress(address || "武汉天地");
+    } catch (error) {
+      console.warn("Geocode failed, using local origin", error);
+    }
+  }
+  return resolveLocalOrigin(address);
 }
 
 function openDialog(place) {
@@ -181,23 +324,44 @@ function openDialog(place) {
   elements.dialog.showModal();
 }
 
-elements.form.addEventListener("submit", (event) => {
+elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(elements.form);
-  state.origin = resolveOrigin(String(formData.get("address") || ""));
+  state.origin = await resolveOrigin(String(formData.get("address") || ""));
   state.radiusKm = Number(formData.get("radius") || 5);
-  render();
+  await refreshPlacesFromAmap();
 });
 
 elements.filterChips.forEach((chip) => {
-  chip.addEventListener("click", () => {
+  chip.addEventListener("click", async () => {
     elements.filterChips.forEach((item) => item.classList.remove("is-active"));
     chip.classList.add("is-active");
     state.category = chip.dataset.category;
-    render();
+    await refreshPlacesFromAmap();
   });
 });
 
 elements.dialogClose.addEventListener("click", () => elements.dialog.close());
 
-render();
+async function boot() {
+  render();
+
+  if (!window.PetsAmap) {
+    setMapNote("未找到高德配置，当前使用本地示例数据。");
+    return;
+  }
+
+  try {
+    await window.PetsAmap.load();
+    state.realMapReady = true;
+    elements.map.classList.add("is-real-map");
+    state.origin = await resolveOrigin(elements.address.value);
+    await refreshPlacesFromAmap();
+  } catch (error) {
+    console.error(error);
+    setMapNote("高德地图加载失败，当前使用本地示例地图。请检查 Key、安全密钥、域名白名单和网络。");
+    render();
+  }
+}
+
+boot();

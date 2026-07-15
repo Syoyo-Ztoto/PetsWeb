@@ -6,6 +6,8 @@
   }
 })(typeof self !== "undefined" ? self : this, function () {
   const EARTH_RADIUS_KM = 6371;
+  const FALLBACK_IMAGE =
+    "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80";
 
   function toRadians(degrees) {
     return (degrees * Math.PI) / 180;
@@ -37,6 +39,7 @@
 
   function filterPlaces(places, origin, radiusKm, category) {
     return places
+      .filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng))
       .map((place) => enrichWithDistance(place, origin))
       .filter((place) => place.distanceKm <= radiusKm)
       .filter((place) => !category || category === "all" || place.category === category)
@@ -74,11 +77,137 @@
     return `${km.toFixed(1)} km`;
   }
 
+  function parseLocation(location) {
+    if (!location) return null;
+
+    if (typeof location === "string") {
+      const [lngText, latText] = location.split(",");
+      const lng = Number(lngText);
+      const lat = Number(latText);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+    }
+
+    if (typeof location.getLng === "function" && typeof location.getLat === "function") {
+      return { lng: location.getLng(), lat: location.getLat() };
+    }
+
+    if (Number.isFinite(location.lng) && Number.isFinite(location.lat)) {
+      return { lng: location.lng, lat: location.lat };
+    }
+
+    return null;
+  }
+
+  function pickCategory(poi, keyword) {
+    const text = `${poi.name || ""} ${poi.type || ""} ${keyword || ""}`;
+
+    if (/宠物服务|宠物店|宠物医院|宠物美容|宠物寄养|萌宠|犬舍|猫舍/.test(text)) {
+      return { category: "pet", categoryLabel: "宠物服务" };
+    }
+    if (/酒店|宾馆|住宿|民宿|公寓酒店|旅馆|客栈/.test(text)) {
+      return { category: "hotel", categoryLabel: "酒店/住宿" };
+    }
+    if (/草坪|江滩|滨江|露营|绿地/.test(text)) {
+      return { category: "lawn", categoryLabel: "草坪/江滩" };
+    }
+    if (/公园|绿道|景区|风景名胜/.test(text)) {
+      return { category: "park", categoryLabel: "公园/绿道" };
+    }
+    if (/咖啡|餐饮|餐厅|西餐|火锅|茶饮|户外座位/.test(text)) {
+      return { category: "restaurant", categoryLabel: "餐饮/咖啡" };
+    }
+    if (/商场|购物|商圈|商业街|步行街|天地|K11|万象城|MALL/i.test(text)) {
+      return { category: "mall", categoryLabel: "商场/商圈" };
+    }
+
+    return { category: "park", categoryLabel: "地点候选" };
+  }
+
+  function pickPhoto(poi) {
+    if (Array.isArray(poi.photos) && poi.photos.length > 0) {
+      return poi.photos[0].url || poi.photos[0].src || FALLBACK_IMAGE;
+    }
+    return FALLBACK_IMAGE;
+  }
+
+  function normalizePhone(tel) {
+    if (Array.isArray(tel)) {
+      return tel.filter(Boolean).join(" / ") || "暂无公开电话";
+    }
+    return tel || "暂无公开电话";
+  }
+
+  function normalizeText(value, fallback) {
+    if (Array.isArray(value)) {
+      return value.filter(Boolean).join(" / ") || fallback;
+    }
+    if (value === null || value === undefined || value === "") {
+      return fallback;
+    }
+    return String(value);
+  }
+
+  function estimateConfidence(poi, keyword) {
+    const text = `${poi.name || ""} ${poi.type || ""} ${keyword || ""}`;
+    let score = 32;
+
+    if (/宠物|猫|狗|犬/.test(text)) score += 28;
+    if (/草坪|江滩|绿道|公园|滨江/.test(text)) score += 14;
+    if (/咖啡|餐厅|商场|街区|天地|酒店|民宿|宠物服务/.test(text)) score += 10;
+    if (normalizePhone(poi.tel) !== "暂无公开电话") score += 6;
+    if (Array.isArray(poi.photos) && poi.photos.length > 0) score += 6;
+
+    return Math.min(score, 72);
+  }
+
+  function normalizeAmapPoi(poi, keyword) {
+    const location = parseLocation(poi.location);
+    const category = pickCategory(poi, keyword);
+    const confidence = estimateConfidence(poi, keyword);
+
+    return {
+      id: `amap-${poi.id || poi.name}`,
+      source: "amap",
+      name: poi.name || "未命名地点",
+      category: category.category,
+      categoryLabel: category.categoryLabel,
+      lat: location ? location.lat : NaN,
+      lng: location ? location.lng : NaN,
+      confidence,
+      petStatus: "unverified",
+      address: normalizeText(poi.address || poi.pname, "暂无地址"),
+      phone: normalizePhone(poi.tel),
+      image: pickPhoto(poi),
+      evidence:
+        "来自高德实时周边搜索。尚未完成宠物政策核验，建议出发前电话确认或查看近期用户反馈。",
+      updatedAt: new Date().toISOString().slice(0, 10),
+      tags: ["高德实时数据", keyword || "周边搜索", "待确认"],
+    };
+  }
+
+  function mergePlaces(primaryPlaces, secondaryPlaces) {
+    const byKey = new Map();
+
+    [...primaryPlaces, ...secondaryPlaces].forEach((place) => {
+      const key = `${place.name}-${place.address || ""}`
+        .replace(/\s+/g, "")
+        .toLowerCase();
+      const existing = byKey.get(key);
+      if (!existing || place.confidence > existing.confidence) {
+        byKey.set(key, place);
+      }
+    });
+
+    return Array.from(byKey.values());
+  }
+
   return {
     calculateDistanceKm,
     filterPlaces,
     getStatusLabel,
     getConfidenceTone,
     formatDistance,
+    normalizeAmapPoi,
+    mergePlaces,
   };
 });
