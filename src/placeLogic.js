@@ -37,15 +37,21 @@
     };
   }
 
+  function getComparableDistanceKm(place) {
+    if (Number.isFinite(place.routeDistanceKm)) return place.routeDistanceKm;
+    if (Number.isFinite(place.routeDistanceMeters)) return place.routeDistanceMeters / 1000;
+    return place.distanceKm;
+  }
+
   function filterPlaces(places, origin, radiusKm, category) {
     return places
       .filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng))
       .map((place) => enrichWithDistance(place, origin))
-      .filter((place) => place.distanceKm <= radiusKm)
+      .filter((place) => getComparableDistanceKm(place) <= radiusKm)
       .filter((place) => !category || category === "all" || place.category === category)
       .sort((a, b) => {
         if (b.confidence !== a.confidence) return b.confidence - a.confidence;
-        return a.distanceKm - b.distanceKm;
+        return getComparableDistanceKm(a) - getComparableDistanceKm(b);
       });
   }
 
@@ -75,6 +81,13 @@
   function formatDistance(km) {
     if (km < 1) return `${Math.round(km * 1000)} m`;
     return `${km.toFixed(1)} km`;
+  }
+
+  function formatPlaceDistance(place) {
+    if (Number.isFinite(place.routeDistanceMeters)) {
+      return `路线 ${formatDistance(place.routeDistanceMeters / 1000)}`;
+    }
+    return `直线 ${formatDistance(place.distanceKm || 0)}`;
   }
 
   function parseLocation(location) {
@@ -207,6 +220,7 @@
     getStatusLabel,
     getConfidenceTone,
     formatDistance,
+    formatPlaceDistance,
     normalizeAmapPoi,
     mergePlaces,
   };

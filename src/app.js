@@ -14,33 +14,31 @@ const WUHAN_BOUNDS = {
   maxLng: 114.43,
 };
 
+const CATEGORY_LABELS = {
+  lawn: "草坪/江滩",
+  park: "公园/绿道",
+  mall: "商场/商圈",
+  restaurant: "餐饮/咖啡",
+  hotel: "酒店/住宿",
+  pet: "宠物服务",
+};
+
 const CATEGORY_KEYWORDS = {
-  all: [
-    "宠物友好",
-    "可带狗",
-    "草坪",
-    "江滩",
-    "公园",
-    "绿道",
-    "商场",
-    "咖啡",
-    "酒店",
-    "宠物服务",
-  ],
-  lawn: ["草坪", "江滩", "滨江", "绿地", "露营"],
+  lawn: ["草坪", "江滩", "滨江"],
   park: ["公园", "绿道", "风景区"],
-  mall: ["商场", "商圈", "购物中心", "步行街", "商业街"],
-  restaurant: ["宠物友好咖啡", "可带狗餐厅", "咖啡", "西餐", "户外座位"],
-  hotel: ["宠物友好酒店", "可带狗酒店", "酒店", "民宿", "公寓酒店"],
-  pet: ["宠物服务", "宠物店", "宠物医院", "宠物美容", "宠物寄养"],
+  mall: ["商场", "购物中心", "商圈"],
+  restaurant: ["宠物友好咖啡", "可带狗餐厅", "咖啡"],
+  hotel: ["宠物友好酒店", "可带狗酒店", "民宿"],
+  pet: ["宠物服务", "宠物医院", "宠物美容"],
 };
 
 const state = {
   origin: WUHAN_DEFAULT_ORIGINS["武汉天地"],
   radiusKm: 5,
-  category: "all",
-  places: window.WUHAN_PLACES || [],
+  category: "lawn",
+  places: [],
   localPlaces: window.WUHAN_PLACES || [],
+  hasSearched: false,
   useAmap: false,
   isLoading: false,
   realMapReady: false,
@@ -49,6 +47,7 @@ const state = {
 
 const elements = {
   form: document.querySelector("#search-form"),
+  submitButton: document.querySelector("#search-form button[type='submit']"),
   address: document.querySelector("#address"),
   resultTitle: document.querySelector("#result-title"),
   resultCount: document.querySelector("#result-count"),
@@ -57,7 +56,6 @@ const elements = {
   mapNote: document.querySelector("#map-note"),
   markerLayer: document.querySelector("#marker-layer"),
   originMarker: document.querySelector("#origin-marker"),
-  filterChips: Array.from(document.querySelectorAll(".filter-chip")),
   dialog: document.querySelector("#place-dialog"),
   dialogClose: document.querySelector("#dialog-close"),
   dialogImage: document.querySelector("#dialog-image"),
@@ -65,6 +63,7 @@ const elements = {
   dialogTitle: document.querySelector("#dialog-title"),
   dialogEvidence: document.querySelector("#dialog-evidence"),
   dialogAddress: document.querySelector("#dialog-address"),
+  dialogDistance: document.querySelector("#dialog-distance"),
   dialogPhone: document.querySelector("#dialog-phone"),
   dialogUpdated: document.querySelector("#dialog-updated"),
   dialogNav: document.querySelector("#dialog-nav"),
@@ -110,6 +109,8 @@ function buildNavUrl(place) {
 
 function setLoading(isLoading, label) {
   state.isLoading = isLoading;
+  elements.submitButton.disabled = isLoading;
+  elements.submitButton.textContent = isLoading ? "搜索中..." : "搜索";
   elements.resultCount.textContent = isLoading
     ? "搜索中..."
     : label || elements.resultCount.textContent;
@@ -191,10 +192,19 @@ function renderMarkers(places) {
 function renderCards(places) {
   elements.resultsList.replaceChildren();
 
+  if (!state.hasSearched) {
+    const prompt = document.createElement("div");
+    prompt.className = "empty-state";
+    prompt.textContent =
+      "请输入地址，选择地点类别和半径后点击搜索。页面不会在切换类别时自动请求高德，因此搜索会更快。";
+    elements.resultsList.append(prompt);
+    return;
+  }
+
   if (state.isLoading) {
     const loading = document.createElement("div");
     loading.className = "empty-state";
-    loading.textContent = "正在从高德搜索武汉附近地点...";
+    loading.textContent = `正在从高德搜索附近的${CATEGORY_LABELS[state.category]}...`;
     elements.resultsList.append(loading);
     return;
   }
@@ -202,7 +212,7 @@ function renderCards(places) {
   if (places.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "当前半径内没有匹配地点。可以扩大到 10 或 20 公里再试。";
+    empty.textContent = `当前半径内没有匹配的${CATEGORY_LABELS[state.category]}。可以扩大到 10 或 20 公里再试。`;
     elements.resultsList.append(empty);
     return;
   }
@@ -219,7 +229,7 @@ function renderCards(places) {
       <div class="place-card__body">
         <div class="place-card__topline">
           <span>${place.categoryLabel}</span>
-          <span>${PlaceLogic.formatDistance(place.distanceKm)}</span>
+          <span>${PlaceLogic.formatPlaceDistance(place)}</span>
         </div>
         <h3>${place.name}</h3>
         <div class="status-row">
@@ -257,15 +267,21 @@ function getVisiblePlaces() {
 
 function render() {
   const places = getVisiblePlaces();
-  elements.resultTitle.textContent = state.origin.label;
+  elements.resultTitle.textContent = state.hasSearched
+    ? `${state.origin.label} · ${CATEGORY_LABELS[state.category]}`
+    : state.origin.label;
   if (!state.isLoading) {
-    elements.resultCount.textContent = `${places.length} 个地点`;
+    elements.resultCount.textContent = state.hasSearched
+      ? `${places.length} 个地点`
+      : "待搜索";
   }
   renderMarkers(places);
   renderCards(places);
 }
 
 async function refreshPlacesFromAmap() {
+  state.hasSearched = true;
+
   if (!window.PetsAmap?.isReady()) {
     state.places = state.localPlaces;
     render();
@@ -276,16 +292,38 @@ async function refreshPlacesFromAmap() {
   render();
 
   try {
-    const keywords = CATEGORY_KEYWORDS[state.category] || CATEGORY_KEYWORDS.all;
+    const keywords = CATEGORY_KEYWORDS[state.category] || CATEGORY_KEYWORDS.lawn;
+    setMapNote(
+      `正在搜索附近的${CATEGORY_LABELS[state.category]}，本次只查询当前类别以提升速度。`
+    );
     const amapPlaces = await window.PetsAmap.searchNearbyPlaces({
       origin: state.origin,
       radiusKm: state.radiusKm,
+      category: state.category,
       keywords,
     });
 
-    state.places = PlaceLogic.mergePlaces(state.localPlaces, amapPlaces);
+    const mergedPlaces = PlaceLogic.mergePlaces(state.localPlaces, amapPlaces);
+    const visiblePlaces = PlaceLogic.filterPlaces(
+      mergedPlaces,
+      state.origin,
+      state.radiusKm,
+      state.category
+    );
+    setMapNote(
+      `正在计算前 ${Math.min(12, visiblePlaces.length)} 个地点的高德步行路线距离。`
+    );
+    const routeEnrichedPlaces = await window.PetsAmap.enrichRouteDistances({
+      origin: state.origin,
+      places: visiblePlaces,
+      limit: 12,
+    });
+
+    state.places = PlaceLogic.mergePlaces(routeEnrichedPlaces, mergedPlaces);
     state.useAmap = true;
-    setMapNote("已接入高德真实地图、地址解析和周边 POI；宠物政策仍需电话或用户反馈确认。");
+    setMapNote(
+      `已搜索附近的${CATEGORY_LABELS[state.category]}，距离优先显示高德步行路线距离；宠物政策仍需电话或用户反馈确认。`
+    );
   } catch (error) {
     console.error(error);
     state.places = state.localPlaces;
@@ -314,6 +352,7 @@ function openDialog(place) {
   elements.dialogTitle.textContent = `${place.name} · ${PlaceLogic.getStatusLabel(place)}`;
   elements.dialogEvidence.textContent = place.evidence;
   elements.dialogAddress.textContent = place.address;
+  elements.dialogDistance.textContent = PlaceLogic.formatPlaceDistance(place);
   elements.dialogPhone.textContent = place.phone;
   elements.dialogUpdated.textContent = place.updatedAt;
   elements.dialogNav.href = buildNavUrl(place);
@@ -329,16 +368,8 @@ elements.form.addEventListener("submit", async (event) => {
   const formData = new FormData(elements.form);
   state.origin = await resolveOrigin(String(formData.get("address") || ""));
   state.radiusKm = Number(formData.get("radius") || 5);
+  state.category = String(formData.get("category") || "lawn");
   await refreshPlacesFromAmap();
-});
-
-elements.filterChips.forEach((chip) => {
-  chip.addEventListener("click", async () => {
-    elements.filterChips.forEach((item) => item.classList.remove("is-active"));
-    chip.classList.add("is-active");
-    state.category = chip.dataset.category;
-    await refreshPlacesFromAmap();
-  });
 });
 
 elements.dialogClose.addEventListener("click", () => elements.dialog.close());
@@ -355,8 +386,8 @@ async function boot() {
     await window.PetsAmap.load();
     state.realMapReady = true;
     elements.map.classList.add("is-real-map");
-    state.origin = await resolveOrigin(elements.address.value);
-    await refreshPlacesFromAmap();
+    setMapNote("高德地图已加载。请输入地址并选择类别后点击搜索。");
+    render();
   } catch (error) {
     console.error(error);
     setMapNote("高德地图加载失败，当前使用本地示例地图。请检查 Key、安全密钥、域名白名单和网络。");

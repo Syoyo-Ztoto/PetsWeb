@@ -90,7 +90,8 @@ h1 {
 }
 
 .search-panel label,
-.radius-group legend {
+.radius-group legend,
+.category-group legend {
   color: #2c3932;
   font-size: 13px;
   font-weight: 800;
@@ -131,13 +132,28 @@ h1 {
   border: 0;
 }
 
-.radius-group legend {
+.category-group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.radius-group {
+  margin-top: 16px;
+}
+
+.radius-group legend,
+.category-group legend {
   width: 100%;
   margin-bottom: 6px;
 }
 
 .radius-group label,
-.filter-chip {
+.filter-chip,
+.category-option span {
   border: 1px solid var(--line);
   border-radius: 999px;
   background: #fff;
@@ -148,6 +164,38 @@ h1 {
 
 .radius-group input {
   accent-color: var(--green);
+}
+
+.category-option {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.category-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.category-option span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 38px;
+  text-align: center;
+}
+
+.category-option input:checked + span {
+  border-color: var(--green);
+  background: #e8f5ed;
+  color: var(--green);
+}
+
+.category-option input:focus-visible + span {
+  outline: 3px solid rgba(31, 122, 76, 0.28);
+  outline-offset: 2px;
 }
 
 .toolbar {
@@ -221,6 +269,19 @@ h1 {
 
 .fallback-map.is-real-map {
   background: #e9eeea;
+}
+
+.amap-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  min-height: 100%;
+  background: #e9eeea;
+}
+
+.fallback-map:not(.is-real-map) .amap-canvas {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .river {
@@ -563,6 +624,10 @@ h1 {
 
   .search-row button {
     width: 100%;
+  }
+
+  .category-group {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dialog-actions,

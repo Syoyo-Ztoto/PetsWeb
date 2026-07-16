@@ -29,6 +29,33 @@
             />
             <button type="submit">搜索</button>
           </div>
+          <fieldset class="category-group">
+            <legend>地点类别</legend>
+            <label class="category-option">
+              <input type="radio" name="category" value="lawn" checked />
+              <span>草坪/江滩</span>
+            </label>
+            <label class="category-option">
+              <input type="radio" name="category" value="park" />
+              <span>公园/绿道</span>
+            </label>
+            <label class="category-option">
+              <input type="radio" name="category" value="mall" />
+              <span>商场/商圈</span>
+            </label>
+            <label class="category-option">
+              <input type="radio" name="category" value="restaurant" />
+              <span>餐饮/咖啡</span>
+            </label>
+            <label class="category-option">
+              <input type="radio" name="category" value="hotel" />
+              <span>酒店/住宿</span>
+            </label>
+            <label class="category-option">
+              <input type="radio" name="category" value="pet" />
+              <span>宠物服务</span>
+            </label>
+          </fieldset>
           <fieldset class="radius-group">
             <legend>筛选半径</legend>
             <label><input type="radio" name="radius" value="1" />1 km</label>
@@ -38,16 +65,6 @@
             <label><input type="radio" name="radius" value="20" />20 km</label>
           </fieldset>
         </form>
-      </section>
-
-      <section class="toolbar" aria-label="地点类型">
-        <button class="filter-chip is-active" data-category="all">全部</button>
-        <button class="filter-chip" data-category="lawn">草坪/江滩</button>
-        <button class="filter-chip" data-category="park">公园/绿道</button>
-        <button class="filter-chip" data-category="mall">商场/商圈</button>
-        <button class="filter-chip" data-category="restaurant">餐饮/咖啡</button>
-        <button class="filter-chip" data-category="hotel">酒店/住宿</button>
-        <button class="filter-chip" data-category="pet">宠物服务</button>
       </section>
 
       <section class="workspace">
@@ -94,6 +111,10 @@
           <div>
             <dt>地址</dt>
             <dd id="dialog-address"></dd>
+          </div>
+          <div>
+            <dt>距离</dt>
+            <dd id="dialog-distance"></dd>
           </div>
           <div>
             <dt>电话</dt>

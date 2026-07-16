@@ -2,6 +2,7 @@ const assert = require("assert");
 const {
   calculateDistanceKm,
   filterPlaces,
+  formatPlaceDistance,
   getStatusLabel,
   mergePlaces,
   normalizeAmapPoi,
@@ -40,6 +41,27 @@ assert.deepStrictEqual(
   "filterPlaces should only return places within the selected radius"
 );
 
+assert.deepStrictEqual(
+  filterPlaces(
+    [
+      {
+        id: "route-too-far",
+        name: "路线绕行地点",
+        lat: 30.6,
+        lng: 114.31,
+        confidence: 70,
+        petStatus: "unverified",
+        routeDistanceMeters: 6800,
+        routeDistanceKm: 6.8,
+      },
+    ],
+    wuhanCenter,
+    5
+  ).map((place) => place.id),
+  [],
+  "filterPlaces should use route distance for radius filtering when available"
+);
+
 assert.strictEqual(
   getStatusLabel({ petStatus: "confirmed", confidence: 86 }),
   "已确认可带狗",
@@ -50,6 +72,18 @@ assert.strictEqual(
   getStatusLabel({ petStatus: "unknown", confidence: 15 }),
   "信息不足，建议先电话确认",
   "unknown places should guide users to confirm before visiting"
+);
+
+assert.strictEqual(
+  formatPlaceDistance({ routeDistanceMeters: 2380, distanceKm: 1.8 }),
+  "路线 2.4 km",
+  "route distance should be preferred when AMap route data is available"
+);
+
+assert.strictEqual(
+  formatPlaceDistance({ distanceKm: 0.72 }),
+  "直线 720 m",
+  "straight-line distance should be clearly labeled as fallback"
 );
 
 const normalizedPoi = normalizeAmapPoi(
