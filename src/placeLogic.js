@@ -6,8 +6,6 @@
   }
 })(typeof self !== "undefined" ? self : this, function () {
   const EARTH_RADIUS_KM = 6371;
-  const FALLBACK_IMAGE =
-    "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80";
 
   function toRadians(degrees) {
     return (degrees * Math.PI) / 180;
@@ -144,9 +142,17 @@
 
   function pickPhoto(poi) {
     if (Array.isArray(poi.photos) && poi.photos.length > 0) {
-      return poi.photos[0].url || poi.photos[0].src || FALLBACK_IMAGE;
+      return poi.photos[0].url || poi.photos[0].src || "";
     }
-    return FALLBACK_IMAGE;
+    return "";
+  }
+
+  function buildImageSearchQuery(place) {
+    return [place.name, place.address, "实景", "图片"]
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function normalizePhone(tel) {
@@ -197,6 +203,11 @@
       address: normalizeText(poi.address || poi.pname, "暂无地址"),
       phone: normalizePhone(poi.tel),
       image: pickPhoto(poi),
+      imageSource: pickPhoto(poi) ? "amap" : "none",
+      imageSearchQuery: buildImageSearchQuery({
+        name: poi.name || "未命名地点",
+        address: normalizeText(poi.address || poi.pname, "武汉"),
+      }),
       evidence:
         "来自高德实时周边搜索。尚未完成宠物政策核验，建议出发前电话确认或查看近期用户反馈。",
       updatedAt: new Date().toISOString().slice(0, 10),
@@ -227,6 +238,7 @@
     getConfidenceTone,
     formatDistance,
     formatPlaceDistance,
+    buildImageSearchQuery,
     normalizeAmapPoi,
     mergePlaces,
   };

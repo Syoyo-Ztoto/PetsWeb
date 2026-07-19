@@ -107,6 +107,30 @@ function buildNavUrl(place) {
   return `https://uri.amap.com/search?keyword=${query}&center=${place.lng},${place.lat}`;
 }
 
+function getPlaceImageHtml(place) {
+  if (place.image && place.imageSource === "amap") {
+    return `<img src="${place.image}" alt="${place.name}" loading="lazy" />`;
+  }
+
+  const screenshotUrl = window.ImageResolver?.getSearchScreenshotUrl(place) || "";
+  const searchPageUrl = window.ImageResolver?.getSearchPageUrl(place) || "#";
+  if (screenshotUrl) {
+    return `
+      <a class="place-shot" href="${searchPageUrl}" target="_blank" rel="noreferrer" aria-label="查看${place.name}图片搜索">
+        <img src="${screenshotUrl}" alt="${place.name}线上图片搜索截图" loading="lazy" />
+        <span>高德暂无图片 · 线上搜索截图</span>
+      </a>
+    `;
+  }
+
+  return `
+    <a class="place-image-empty" href="${searchPageUrl}" target="_blank" rel="noreferrer">
+      <span>高德暂无图片</span>
+      <strong>打开线上图片搜索</strong>
+    </a>
+  `;
+}
+
 function setLoading(isLoading, label) {
   state.isLoading = isLoading;
   elements.submitButton.disabled = isLoading;
@@ -226,7 +250,7 @@ function renderCards(places) {
     article.className = "place-card";
     const tags = Array.isArray(place.tags) ? place.tags : [];
     article.innerHTML = `
-      <img src="${place.image}" alt="${place.name}" loading="lazy" />
+      ${getPlaceImageHtml(place)}
       <div class="place-card__body">
         <div class="place-card__topline">
           <span>${place.categoryLabel}</span>
@@ -347,7 +371,10 @@ async function resolveOrigin(address) {
 }
 
 function openDialog(place) {
-  elements.dialogImage.src = place.image;
+  elements.dialogImage.src =
+    place.image && place.imageSource === "amap"
+      ? place.image
+      : window.ImageResolver?.getSearchScreenshotUrl(place) || "";
   elements.dialogImage.alt = place.name;
   elements.dialogCategory.textContent = place.categoryLabel;
   elements.dialogTitle.textContent = `${place.name} · ${PlaceLogic.getStatusLabel(place)}`;

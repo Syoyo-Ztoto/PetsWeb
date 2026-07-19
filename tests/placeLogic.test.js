@@ -1,6 +1,7 @@
 const assert = require("assert");
 const {
   calculateDistanceKm,
+  buildImageSearchQuery,
   filterPlaces,
   formatPlaceDistance,
   getStatusLabel,
@@ -116,6 +117,7 @@ assert.strictEqual(normalizedPoi.category, "restaurant");
 assert.strictEqual(normalizedPoi.categoryLabel, "餐饮/咖啡");
 assert.strictEqual(normalizedPoi.phone, "暂无公开电话");
 assert.strictEqual(normalizedPoi.image, "https://example.com/photo.jpg");
+assert.strictEqual(normalizedPoi.imageSource, "amap");
 assert.strictEqual(normalizedPoi.petStatus, "unverified");
 
 const normalizedObjectLocationPoi = normalizeAmapPoi(
@@ -134,6 +136,17 @@ const normalizedObjectLocationPoi = normalizeAmapPoi(
 assert.strictEqual(normalizedObjectLocationPoi.category, "lawn");
 assert.strictEqual(normalizedObjectLocationPoi.address, "暂无地址");
 assert.strictEqual(normalizedObjectLocationPoi.phone, "027-12345678");
+assert.strictEqual(normalizedObjectLocationPoi.image, "");
+assert.strictEqual(normalizedObjectLocationPoi.imageSource, "none");
+
+assert.strictEqual(
+  buildImageSearchQuery({
+    name: "汉口江滩",
+    address: "武汉市江岸区沿江大道",
+  }),
+  "汉口江滩 武汉市江岸区沿江大道 实景 图片",
+  "image search query should target the specific place instead of a generic web image"
+);
 
 const normalizedHotelPoi = normalizeAmapPoi(
   {
