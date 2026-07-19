@@ -24,7 +24,7 @@ const CATEGORY_LABELS = {
 };
 
 const CATEGORY_KEYWORDS = {
-  lawn: ["草坪", "江滩", "滨江"],
+  lawn: ["江滩公园", "草坪公园", "滨江公园"],
   park: ["公园", "绿道", "风景区"],
   mall: ["商场", "购物中心", "商圈"],
   restaurant: ["宠物友好咖啡", "可带狗餐厅", "咖啡"],

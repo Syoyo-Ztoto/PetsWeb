@@ -87,6 +87,36 @@ assert.strictEqual(
 
 assert.strictEqual(
   isRelevantLeisurePlace({
+    name: "武汉滨江石油加油站",
+    type: "汽车服务;加油站;加油站",
+    category: "lawn",
+  }),
+  false,
+  "gas stations with riverside names should not appear as dog-walking recommendations"
+);
+
+assert.strictEqual(
+  isRelevantLeisurePlace({
+    name: "山间棠亲子健康调理馆二七滨江店",
+    type: "生活服务;生活服务场所;生活服务场所",
+    category: "lawn",
+  }),
+  false,
+  "business venues with riverside branch names should not appear as leisure walking places"
+);
+
+assert.strictEqual(
+  isRelevantLeisurePlace({
+    name: "江滩综合办事处",
+    type: "政府机构及社会团体;政府机关;政府机关",
+    category: "lawn",
+  }),
+  false,
+  "offices should not appear even when the name contains riverside keywords"
+);
+
+assert.strictEqual(
+  isRelevantLeisurePlace({
     name: "汉口江滩三期",
     type: "风景名胜;公园广场;公园",
     category: "lawn",
