@@ -3,8 +3,10 @@ const {
   calculateDistanceKm,
   buildImageSearchQuery,
   filterPlaces,
+  groupSearchResults,
   formatPlaceDistance,
   getStatusLabel,
+  isRelevantLeisurePlace,
   mergePlaces,
   normalizeAmapPoi,
 } = require("../src/placeLogic");
@@ -61,6 +63,70 @@ assert.deepStrictEqual(
   ).map((place) => place.id),
   [],
   "filterPlaces should use route distance for radius filtering when available"
+);
+
+assert.strictEqual(
+  isRelevantLeisurePlace({
+    name: "汉口江滩停车场",
+    type: "交通设施服务;停车场;停车场",
+    category: "lawn",
+  }),
+  false,
+  "parking lots near a riverside park should not appear as dog-walking recommendations"
+);
+
+assert.strictEqual(
+  isRelevantLeisurePlace({
+    name: "汉口江滩幼儿园",
+    type: "科教文化服务;学校;幼儿园",
+    category: "lawn",
+  }),
+  false,
+  "schools and kindergartens should not appear as leisure walking places"
+);
+
+assert.strictEqual(
+  isRelevantLeisurePlace({
+    name: "汉口江滩三期",
+    type: "风景名胜;公园广场;公园",
+    category: "lawn",
+  }),
+  true,
+  "large riverside park sections should remain eligible"
+);
+
+assert.deepStrictEqual(
+  groupSearchResults([
+    {
+      id: "amap-river-1",
+      name: "汉口江滩三期",
+      address: "武汉市江岸区沿江大道",
+      category: "lawn",
+      confidence: 60,
+      image: "",
+    },
+    {
+      id: "amap-river-2",
+      name: "汉口江滩公园",
+      address: "武汉市江岸区沿江大道",
+      category: "lawn",
+      confidence: 58,
+      image: "https://example.com/river.jpg",
+      imageSource: "amap",
+    },
+  ]).map((place) => ({
+    name: place.name,
+    id: place.id,
+    image: place.image,
+  })),
+  [
+    {
+      name: "汉口江滩",
+      id: "amap-river-1",
+      image: "https://example.com/river.jpg",
+    },
+  ],
+  "riverfront sections should be grouped into one overall destination while preserving available AMap photos"
 );
 
 assert.strictEqual(

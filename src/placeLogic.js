@@ -42,15 +42,85 @@
   }
 
   function filterPlaces(places, origin, radiusKm, category) {
-    return places
+    const filteredPlaces = places
       .filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng))
+      .filter((place) => isRelevantPlaceForCategory(place, category))
       .map((place) => enrichWithDistance(place, origin))
       .filter((place) => getComparableDistanceKm(place) <= radiusKm)
-      .filter((place) => !category || category === "all" || place.category === category)
-      .sort((a, b) => {
+      .filter((place) => !category || category === "all" || place.category === category);
+
+    return groupSearchResults(filteredPlaces).sort((a, b) => {
         if (b.confidence !== a.confidence) return b.confidence - a.confidence;
         return getComparableDistanceKm(a) - getComparableDistanceKm(b);
       });
+  }
+
+  function isRejectedPoi(place) {
+    const text = `${place.name || ""} ${place.type || ""} ${place.address || ""}`;
+    return /停车|车库|幼儿园|学校|小学|中学|大学|培训|厕所|卫生间|地铁站|公交|派出所|警务|银行|住宅|小区|写字楼|入口|出口|售票|收费站|服务中心|管理处/.test(text);
+  }
+
+  function isRelevantLeisurePlace(place) {
+    if (isRejectedPoi(place)) return false;
+    const text = `${place.name || ""} ${place.type || ""} ${place.categoryLabel || ""}`;
+    return /江滩|公园|绿道|草坪|绿地|滨江|湿地|风景区|风景名胜|郊野|森林|广场/.test(text);
+  }
+
+  function isRelevantPlaceForCategory(place, category) {
+    if (category === "lawn" || category === "park") {
+      return isRelevantLeisurePlace(place);
+    }
+    return !isRejectedPoi(place);
+  }
+
+  function getCanonicalPlaceName(name) {
+    const cleanName = String(name || "")
+      .replace(/[（(].*?[）)]/g, "")
+      .replace(/第?[一二三四五六七八九十0-9]+期/g, "")
+      .replace(/[-—_].*$/g, "")
+      .trim();
+
+    const riverMatch = cleanName.match(/(.{1,8}?江滩)/);
+    if (riverMatch) return riverMatch[1];
+
+    const parkMatch = cleanName.match(/(.{1,12}?(?:公园|绿道|湿地|风景区|森林公园))/);
+    if (parkMatch) return parkMatch[1];
+
+    return cleanName || name;
+  }
+
+  function mergeGroupedPlace(existing, candidate) {
+    const merged = existing.confidence >= candidate.confidence ? { ...existing } : { ...candidate };
+    const other = merged.id === existing.id ? candidate : existing;
+
+    merged.name = getCanonicalPlaceName(merged.name);
+    merged.confidence = Math.max(existing.confidence || 0, candidate.confidence || 0);
+    merged.image = existing.image || candidate.image || "";
+    merged.imageSource = existing.imageSource === "amap" || candidate.imageSource === "amap"
+      ? "amap"
+      : existing.imageSource || candidate.imageSource || "none";
+    merged.tags = Array.from(new Set([...(existing.tags || []), ...(candidate.tags || [])]));
+    merged.evidence = existing.evidence || candidate.evidence;
+    merged.address = existing.address && existing.address !== "暂无地址" ? existing.address : other.address;
+
+    return merged;
+  }
+
+  function groupSearchResults(places) {
+    const byKey = new Map();
+
+    places.forEach((place) => {
+      const canonicalName = getCanonicalPlaceName(place.name);
+      const key = `${canonicalName}-${place.category || ""}`;
+      const normalizedPlace = {
+        ...place,
+        name: canonicalName,
+      };
+      const existing = byKey.get(key);
+      byKey.set(key, existing ? mergeGroupedPlace(existing, normalizedPlace) : normalizedPlace);
+    });
+
+    return Array.from(byKey.values());
   }
 
   function getStatusLabel(place) {
@@ -194,6 +264,7 @@
       id: `amap-${poi.id || poi.name}`,
       source: "amap",
       name: poi.name || "未命名地点",
+      type: normalizeText(poi.type, ""),
       category: category.category,
       categoryLabel: category.categoryLabel,
       lat: location ? location.lat : NaN,
@@ -239,6 +310,8 @@
     formatDistance,
     formatPlaceDistance,
     buildImageSearchQuery,
+    groupSearchResults,
+    isRelevantLeisurePlace,
     normalizeAmapPoi,
     mergePlaces,
   };

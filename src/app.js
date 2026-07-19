@@ -328,7 +328,9 @@ async function refreshPlacesFromAmap() {
       keywords,
     });
 
-    const mergedPlaces = PlaceLogic.mergePlaces(state.localPlaces, amapPlaces);
+    const mergedPlaces = PlaceLogic.groupSearchResults(
+      PlaceLogic.mergePlaces(state.localPlaces, amapPlaces)
+    );
     const visiblePlaces = PlaceLogic.filterPlaces(
       mergedPlaces,
       state.origin,
