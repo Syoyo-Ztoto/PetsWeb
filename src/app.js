@@ -117,6 +117,7 @@ function setLoading(isLoading, label) {
 }
 
 function setMapNote(message) {
+  if (!elements.mapNote) return;
   elements.mapNote.textContent = message;
 }
 
@@ -311,7 +312,7 @@ async function refreshPlacesFromAmap() {
       state.category
     );
     setMapNote(
-      `正在计算前 ${Math.min(12, visiblePlaces.length)} 个地点的高德步行路线距离。`
+      `正在计算前 ${Math.min(12, visiblePlaces.length)} 个地点的高德路线距离和驾车时间。`
     );
     const routeEnrichedPlaces = await window.PetsAmap.enrichRouteDistances({
       origin: state.origin,
@@ -322,7 +323,7 @@ async function refreshPlacesFromAmap() {
     state.places = PlaceLogic.mergePlaces(routeEnrichedPlaces, mergedPlaces);
     state.useAmap = true;
     setMapNote(
-      `已搜索附近的${CATEGORY_LABELS[state.category]}，距离优先显示高德步行路线距离；宠物政策仍需电话或用户反馈确认。`
+      `已搜索附近的${CATEGORY_LABELS[state.category]}，距离优先显示高德路线距离，并展示当前驾车预估时间。`
     );
   } catch (error) {
     console.error(error);

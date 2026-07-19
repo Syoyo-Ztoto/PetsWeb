@@ -81,6 +81,16 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
+  formatPlaceDistance({
+    routeDistanceMeters: 2380,
+    drivingDurationSeconds: 780,
+    distanceKm: 1.8,
+  }),
+  "路线 2.4 km · 驾车约 13 分钟",
+  "driving duration should be shown when AMap driving route data is available"
+);
+
+assert.strictEqual(
   formatPlaceDistance({ distanceKm: 0.72 }),
   "直线 720 m",
   "straight-line distance should be clearly labeled as fallback"

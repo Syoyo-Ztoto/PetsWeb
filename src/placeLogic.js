@@ -84,10 +84,16 @@
   }
 
   function formatPlaceDistance(place) {
-    if (Number.isFinite(place.routeDistanceMeters)) {
-      return `路线 ${formatDistance(place.routeDistanceMeters / 1000)}`;
+    const distanceLabel = Number.isFinite(place.routeDistanceMeters)
+      ? `路线 ${formatDistance(place.routeDistanceMeters / 1000)}`
+      : `直线 ${formatDistance(place.distanceKm || 0)}`;
+
+    if (!Number.isFinite(place.drivingDurationSeconds)) {
+      return distanceLabel;
     }
-    return `直线 ${formatDistance(place.distanceKm || 0)}`;
+
+    const minutes = Math.max(1, Math.round(place.drivingDurationSeconds / 60));
+    return `${distanceLabel} · 驾车约 ${minutes} 分钟`;
   }
 
   function parseLocation(location) {

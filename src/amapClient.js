@@ -4,6 +4,7 @@
   let map = null;
   const searchCache = new Map();
   const routeCache = new Map();
+  const drivingCache = new Map();
 
   function ensureConfig() {
     if (!config?.key || !config?.securityJsCode) {
@@ -28,6 +29,7 @@
         "AMap.Geocoder",
         "AMap.PlaceSearch",
         "AMap.Walking",
+        "AMap.Driving",
         "AMap.Scale",
         "AMap.ToolBar",
       ].join(",");
@@ -226,8 +228,56 @@
     });
   }
 
+  function getDrivingRoute(origin, place) {
+    const cacheKey = buildRouteCacheKey(origin, place);
+    if (drivingCache.has(cacheKey)) {
+      return Promise.resolve(drivingCache.get(cacheKey));
+    }
+
+    return new Promise((resolve) => {
+      let isSettled = false;
+      const timeoutId = window.setTimeout(() => {
+        if (isSettled) return;
+        isSettled = true;
+        resolve(null);
+      }, 3500);
+
+      const driving = new AMap.Driving({
+        city: config.city,
+        policy: AMap.DrivingPolicy.LEAST_TIME,
+      });
+      driving.search(
+        [origin.lng, origin.lat],
+        [place.lng, place.lat],
+        (status, result) => {
+          if (isSettled) return;
+          isSettled = true;
+          window.clearTimeout(timeoutId);
+
+          const route = result?.routes?.[0];
+          const duration = Number(route?.time);
+          const distance = Number(route?.distance);
+          const drivingRoute =
+            Number.isFinite(duration) || Number.isFinite(distance)
+              ? {
+                  drivingDurationSeconds: Number.isFinite(duration)
+                    ? duration
+                    : null,
+                  drivingDistanceMeters: Number.isFinite(distance)
+                    ? distance
+                    : null,
+                }
+              : null;
+
+          drivingCache.set(cacheKey, drivingRoute);
+          resolve(drivingRoute);
+        }
+      );
+    });
+  }
+
   async function enrichRouteDistances({ origin, places, limit = 12 }) {
-    if (!window.AMap?.Walking) return places;
+    if (!window.AMap?.Walking && !window.AMap?.Driving) return places;
 
     const targetPlaces = places.slice(0, limit);
     const untouchedPlaces = places.slice(limit);
@@ -237,12 +287,27 @@
       const batch = targetPlaces.slice(index, index + 4);
       const batchResults = await Promise.all(
         batch.map(async (place) => {
-          const routeDistanceMeters = await getWalkingDistance(origin, place);
-          if (!Number.isFinite(routeDistanceMeters)) return place;
+          const [routeDistanceMeters, drivingRoute] = await Promise.all([
+            window.AMap?.Walking ? getWalkingDistance(origin, place) : null,
+            window.AMap?.Driving ? getDrivingRoute(origin, place) : null,
+          ]);
+
+          if (!Number.isFinite(routeDistanceMeters) && !drivingRoute) {
+            return place;
+          }
+
           return {
             ...place,
-            routeDistanceMeters,
-            routeDistanceKm: routeDistanceMeters / 1000,
+            routeDistanceMeters: Number.isFinite(routeDistanceMeters)
+              ? routeDistanceMeters
+              : place.routeDistanceMeters,
+            routeDistanceKm: Number.isFinite(routeDistanceMeters)
+              ? routeDistanceMeters / 1000
+              : place.routeDistanceKm,
+            drivingDurationSeconds:
+              drivingRoute?.drivingDurationSeconds ?? place.drivingDurationSeconds,
+            drivingDistanceMeters:
+              drivingRoute?.drivingDistanceMeters ?? place.drivingDistanceMeters,
             distanceSource: "amap-walking",
           };
         })
