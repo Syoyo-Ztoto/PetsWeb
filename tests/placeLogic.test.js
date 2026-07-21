@@ -6,6 +6,7 @@ const {
   groupSearchResults,
   formatPlaceDistance,
   getStatusLabel,
+  isRelevantPlaceForCategory,
   isRelevantLeisurePlace,
   mergePlaces,
   normalizeAmapPoi,
@@ -214,7 +215,8 @@ assert.strictEqual(normalizedPoi.categoryLabel, "餐饮/咖啡");
 assert.strictEqual(normalizedPoi.phone, "暂无公开电话");
 assert.strictEqual(normalizedPoi.image, "https://example.com/photo.jpg");
 assert.strictEqual(normalizedPoi.imageSource, "amap");
-assert.strictEqual(normalizedPoi.petStatus, "unverified");
+assert.strictEqual(normalizedPoi.petStatus, "limited");
+assert.strictEqual(getStatusLabel(normalizedPoi), "有狗狗肩高/座位限制");
 
 const normalizedObjectLocationPoi = normalizeAmapPoi(
   {
@@ -259,6 +261,58 @@ const normalizedHotelPoi = normalizeAmapPoi(
 
 assert.strictEqual(normalizedHotelPoi.category, "hotel");
 assert.strictEqual(normalizedHotelPoi.categoryLabel, "酒店/住宿");
+assert.strictEqual(normalizedHotelPoi.petStatus, "confirmed");
+assert.strictEqual(normalizedHotelPoi.petPolicyNote, "可带狗，入住前确认体型、清洁费和房型限制");
+assert.strictEqual(
+  getStatusLabel(normalizedHotelPoi),
+  "可带狗",
+  "explicit pet-friendly hotels should not show pending confirmation"
+);
+
+assert.strictEqual(
+  isRelevantPlaceForCategory(
+    {
+      name: "武汉亚朵酒店",
+      type: "住宿服务;宾馆酒店;宾馆酒店",
+      category: "hotel",
+    },
+    "hotel"
+  ),
+  false,
+  "ordinary chain business hotels should be filtered from pet-friendly hotel results"
+);
+
+assert.deepStrictEqual(
+  filterPlaces(
+    [
+      {
+        id: "pet-hotel",
+        name: "武汉宠物友好酒店",
+        type: "住宿服务;宾馆酒店;宾馆酒店",
+        category: "hotel",
+        lat: 30.593,
+        lng: 114.306,
+        confidence: 72,
+        petStatus: "confirmed",
+      },
+      {
+        id: "homestay",
+        name: "东湖可带狗民宿",
+        type: "住宿服务;住宿服务相关;住宿服务相关",
+        category: "hotel",
+        lat: 30.594,
+        lng: 114.307,
+        confidence: 66,
+        petStatus: "limited",
+      },
+    ],
+    wuhanCenter,
+    5,
+    "hotel"
+  ).map((place) => place.id),
+  ["pet-hotel", "homestay"],
+  "pet-friendly hotels should rank before homestays"
+);
 
 const normalizedPetServicePoi = normalizeAmapPoi(
   {
@@ -275,6 +329,32 @@ const normalizedPetServicePoi = normalizeAmapPoi(
 
 assert.strictEqual(normalizedPetServicePoi.category, "pet");
 assert.strictEqual(normalizedPetServicePoi.categoryLabel, "宠物服务");
+assert.strictEqual(normalizedPetServicePoi.petStatus, "confirmed");
+assert.strictEqual(
+  getStatusLabel(normalizedPetServicePoi),
+  "可带狗",
+  "pet services should not ask users to confirm whether pets are allowed"
+);
+
+const normalizedPetRestaurantPoi = normalizeAmapPoi(
+  {
+    id: "B0FFDOGCAFE",
+    name: "可带狗露台咖啡",
+    location: "114.33,30.6",
+    type: "餐饮服务;咖啡厅;咖啡厅",
+    address: "武汉市江岸区露台路10号",
+    tel: "027-55555555",
+    photos: [],
+  },
+  "宠物友好咖啡"
+);
+
+assert.strictEqual(normalizedPetRestaurantPoi.petStatus, "limited");
+assert.strictEqual(
+  normalizedPetRestaurantPoi.petPolicyNote,
+  "可带狗，常见限制为牵绳、户外座位或狗狗肩高限制"
+);
+assert.strictEqual(getStatusLabel(normalizedPetRestaurantPoi), "有狗狗肩高/座位限制");
 
 const mergedPlaces = mergePlaces(
   [

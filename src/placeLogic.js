@@ -50,6 +50,8 @@
       .filter((place) => !category || category === "all" || place.category === category);
 
     return groupSearchResults(filteredPlaces).sort((a, b) => {
+        const rankDiff = getCategoryRank(b, category) - getCategoryRank(a, category);
+        if (rankDiff !== 0) return rankDiff;
         if (b.confidence !== a.confidence) return b.confidence - a.confidence;
         return getComparableDistanceKm(a) - getComparableDistanceKm(b);
       });
@@ -70,7 +72,41 @@
     if (category === "lawn" || category === "park") {
       return isRelevantLeisurePlace(place);
     }
+    if (category === "hotel") {
+      return isRelevantHotelPlace(place);
+    }
     return !isRejectedPoi(place);
+  }
+
+  function isExplicitPetFriendlyText(text) {
+    return /宠物友好|可带狗|可带犬|可携宠|携宠|带狗|狗狗友好|宠物可入住|允许宠物|宠物入住|萌宠/.test(text);
+  }
+
+  function isHomestayText(text) {
+    return /民宿|客栈|公寓|短租|露营地|营地/.test(text);
+  }
+
+  function isOrdinaryChainHotel(text) {
+    return /亚朵|全季|汉庭|如家|锦江之星|城市便捷|维也纳|麗枫|丽枫|希尔顿|万豪|洲际|皇冠假日|香格里拉|凯悦|喜来登|宜必思|桔子酒店|速8|7天|七天|格林豪泰|尚客优|美居|铂尔曼|诺富特/.test(text);
+  }
+
+  function isRelevantHotelPlace(place) {
+    if (isRejectedPoi(place)) return false;
+    const text = `${place.name || ""} ${place.type || ""} ${place.address || ""}`;
+    if (isExplicitPetFriendlyText(text) || isHomestayText(text)) return true;
+    return !isOrdinaryChainHotel(text) && /酒店|宾馆|住宿|民宿|客栈|公寓酒店/.test(text);
+  }
+
+  function getCategoryRank(place, category) {
+    const text = `${place.name || ""} ${place.type || ""} ${place.address || ""} ${place.petPolicyNote || ""}`;
+    if (category === "hotel") {
+      if (isExplicitPetFriendlyText(text)) return 300;
+      if (isHomestayText(text)) return 200;
+      return 100;
+    }
+    if (place.petStatus === "confirmed") return 200;
+    if (place.petStatus === "limited") return 150;
+    return 0;
   }
 
   function getCanonicalPlaceName(name) {
@@ -124,14 +160,14 @@
   }
 
   function getStatusLabel(place) {
-    if (place.petStatus === "confirmed" && place.confidence >= 80) {
-      return "已确认可带狗";
+    if (place.petStatus === "confirmed") {
+      return place.petPolicyNote ? "可带狗" : "已确认可带狗";
     }
     if (place.petStatus === "recent") {
       return "近期有人带狗";
     }
     if (place.petStatus === "limited") {
-      return "可带狗但有限制";
+      return place.petPolicyNote ? "有狗狗肩高/座位限制" : "可带狗但有限制";
     }
     if (place.petStatus === "unverified") {
       return "待确认";
@@ -255,10 +291,48 @@
     return Math.min(score, 72);
   }
 
+  function inferPetPolicy(poi, keyword, category) {
+    const text = `${poi.name || ""} ${poi.type || ""} ${keyword || ""}`;
+
+    if (category === "pet") {
+      return {
+        petStatus: "confirmed",
+        petPolicyNote: "宠物服务场景，默认可带狗；异宠请事先确认",
+      };
+    }
+
+    if (category === "hotel" && isExplicitPetFriendlyText(text)) {
+      return {
+        petStatus: "confirmed",
+        petPolicyNote: "可带狗，入住前确认体型、清洁费和房型限制",
+      };
+    }
+
+    if (category === "hotel" && isHomestayText(text)) {
+      return {
+        petStatus: "limited",
+        petPolicyNote: "民宿优先，入住前确认狗狗体型、清洁费和房东规则",
+      };
+    }
+
+    if (category === "restaurant" && isExplicitPetFriendlyText(text)) {
+      return {
+        petStatus: "limited",
+        petPolicyNote: "可带狗，常见限制为牵绳、户外座位或狗狗肩高限制",
+      };
+    }
+
+    return {
+      petStatus: "unverified",
+      petPolicyNote: "",
+    };
+  }
+
   function normalizeAmapPoi(poi, keyword) {
     const location = parseLocation(poi.location);
     const category = pickCategory(poi, keyword);
     const confidence = estimateConfidence(poi, keyword);
+    const petPolicy = inferPetPolicy(poi, keyword, category.category);
 
     return {
       id: `amap-${poi.id || poi.name}`,
@@ -270,7 +344,8 @@
       lat: location ? location.lat : NaN,
       lng: location ? location.lng : NaN,
       confidence,
-      petStatus: "unverified",
+      petStatus: petPolicy.petStatus,
+      petPolicyNote: petPolicy.petPolicyNote,
       address: normalizeText(poi.address || poi.pname, "暂无地址"),
       phone: normalizePhone(poi.tel),
       image: pickPhoto(poi),
@@ -280,9 +355,11 @@
         address: normalizeText(poi.address || poi.pname, "武汉"),
       }),
       evidence:
-        "来自高德实时周边搜索，并已过滤明显非休闲散步场景。尚未完成宠物政策核验，建议出发前电话确认或查看近期用户反馈。",
+        petPolicy.petPolicyNote
+          ? `来自高德实时周边搜索。${petPolicy.petPolicyNote}。`
+          : "来自高德实时周边搜索，并已过滤明显非休闲散步场景。尚未完成宠物政策核验，建议出发前电话确认或查看近期用户反馈。",
       updatedAt: new Date().toISOString().slice(0, 10),
-      tags: ["高德实时数据", keyword || "周边搜索", "待确认"],
+      tags: ["高德实时数据", keyword || "周边搜索", petPolicy.petStatus === "unverified" ? "待确认" : "可带狗"],
     };
   }
 
@@ -312,6 +389,7 @@
     buildImageSearchQuery,
     groupSearchResults,
     isRelevantLeisurePlace,
+    isRelevantPlaceForCategory,
     normalizeAmapPoi,
     mergePlaces,
   };
