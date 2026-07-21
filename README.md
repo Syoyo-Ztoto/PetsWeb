@@ -45,6 +45,41 @@
 
 不要把高德 Web 服务 Key 用在纯前端请求里。Web 服务 Key 应放在后端，由后端代理地理编码、POI 搜索、缓存和风控。
 
+## 前后端拆分
+
+当前仓库已经按“静态前端 + 可选后端接口”拆开：
+
+- 前端：`index.html`、`styles.css`、`src/*`，继续部署到 GitHub Pages。
+- 后端：`api/search.js`，部署到 Vercel、Netlify Functions、Cloudflare Workers 或自己的 Node 服务。
+- 测试：`tests/*`，用于校验筛选、排序、导航和后端返回结构。
+
+GitHub Pages 只能托管静态网页，不能运行 `api/search.js`。因此真实 Web 服务 Key 不应写进 GitHub Pages 前端文件里，而是配置到后端运行环境变量：
+
+```text
+AMAP_WEB_SERVICE_KEY=你的高德 Web 服务 Key
+```
+
+后端部署完成后，把 `src/backendConfig.js` 里的 `searchEndpoint` 改成后端接口地址，例如：
+
+```js
+window.PETS_BACKEND_CONFIG = {
+  searchEndpoint: "https://your-vercel-app.vercel.app/api/search",
+};
+```
+
+配置了 `searchEndpoint` 后，网页搜索会优先请求后端。后端不可用或未配置时，网页会自动回退到当前的高德 JS API 前端搜索。
+
+### 后端接口职责
+
+`api/search.js` 负责：
+
+- 隐藏高德 Web 服务 Key。
+- 将用户输入地址限定在武汉范围内地理编码。
+- 按用户选择的类别和半径请求高德 Web 服务 POI。
+- 复用 `src/placeLogic.js` 的筛选、去重、酒店优先级、宠物友好状态判断。
+- 请求高德步行/驾车路线，返回路线距离和当下驾车预估时间。
+- 对同一地址、半径、类别做 10 分钟内存缓存，减少重复请求。
+
 当前前端使用的是高德 JS API：
 
 - `AMap.Map`：真实地图底图
@@ -59,9 +94,9 @@
 
 ## 后续真实数据增强
 
-1. 新增后端服务，隐藏高德 Web 服务 Key。
+1. 部署 `api/search.js`，把 `src/backendConfig.js` 指向后端接口。
 2. 建立数据库表：地点、宠物友好状态、证据记录、用户反馈、运营审核任务。
-3. 用后端定期缓存高德 POI，减少前端重复搜索。
+3. 将 10 分钟内存缓存升级为数据库缓存或 Redis 缓存。
 4. 小红书/抖音内容不要直接抓取；优先走官方合作、人工录入摘要和用户授权反馈。
 
 ## 本地校验
@@ -70,4 +105,5 @@
 
 ```powershell
 & 'C:\Users\74731\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' tests\placeLogic.test.js
+& 'C:\Users\74731\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' tests\backendSearch.test.js
 ```

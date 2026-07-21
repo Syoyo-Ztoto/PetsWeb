@@ -303,6 +303,37 @@ function render() {
   renderCards(places);
 }
 
+async function refreshPlacesFromBackend(address) {
+  if (!window.PetsBackend?.isReady()) return false;
+
+  state.hasSearched = true;
+  setLoading(true);
+  setMapNote(`正在通过后端搜索附近的${CATEGORY_LABELS[state.category]}，并复用服务端缓存加快响应。`);
+  render();
+
+  try {
+    const data = await window.PetsBackend.searchPlaces({
+      address,
+      radiusKm: state.radiusKm,
+      category: state.category,
+    });
+    state.origin = data.origin || resolveLocalOrigin(address);
+    state.places = Array.isArray(data.places) ? data.places : [];
+    state.useAmap = true;
+    setMapNote(
+      `已通过后端获取高德真实数据，结果包含服务端筛选、路线距离和驾车预估时间。`
+    );
+    return true;
+  } catch (error) {
+    console.warn("Backend search failed, falling back to frontend AMap", error);
+    setMapNote("后端搜索暂不可用，正在切换为前端高德 JS API 搜索。");
+    return false;
+  } finally {
+    setLoading(false);
+    render();
+  }
+}
+
 async function refreshPlacesFromAmap() {
   state.hasSearched = true;
 
@@ -395,9 +426,11 @@ function openDialog(place) {
 elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(elements.form);
-  state.origin = await resolveOrigin(String(formData.get("address") || ""));
+  const address = String(formData.get("address") || "");
   state.radiusKm = Number(formData.get("radius") || 5);
   state.category = String(formData.get("category") || "lawn");
+  if (await refreshPlacesFromBackend(address)) return;
+  state.origin = await resolveOrigin(address);
   await refreshPlacesFromAmap();
 });
 
