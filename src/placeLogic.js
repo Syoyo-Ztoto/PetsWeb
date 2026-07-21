@@ -41,6 +41,33 @@
     return place.distanceKm;
   }
 
+  function withWuhanPrefix(name) {
+    const cleanName = String(name || "").trim();
+    if (!cleanName) return "武汉目的地";
+    return cleanName.startsWith("武汉") ? cleanName : `武汉${cleanName}`;
+  }
+
+  function buildAmapNavigationUrl(place) {
+    const destinationName = encodeURIComponent(withWuhanPrefix(place.name));
+
+    if (Number.isFinite(place.lng) && Number.isFinite(place.lat)) {
+      return [
+        "https://uri.amap.com/navigation",
+        `?to=${place.lng},${place.lat},${destinationName}`,
+        "&mode=car",
+        "&policy=1",
+        "&src=PetsWeb",
+        "&coordinate=gaode",
+        "&callnative=1",
+      ].join("");
+    }
+
+    const keyword = encodeURIComponent(
+      ["武汉", place.name, place.address].filter(Boolean).join(" ")
+    );
+    return `https://uri.amap.com/search?keyword=${keyword}&city=${encodeURIComponent("武汉")}`;
+  }
+
   function filterPlaces(places, origin, radiusKm, category) {
     const filteredPlaces = places
       .filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng))
@@ -381,6 +408,7 @@
 
   return {
     calculateDistanceKm,
+    buildAmapNavigationUrl,
     filterPlaces,
     getStatusLabel,
     getConfidenceTone,

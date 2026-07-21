@@ -1,6 +1,7 @@
 const assert = require("assert");
 const {
   calculateDistanceKm,
+  buildAmapNavigationUrl,
   buildImageSearchQuery,
   filterPlaces,
   groupSearchResults,
@@ -43,6 +44,26 @@ assert.deepStrictEqual(
   filterPlaces(places, wuhanCenter, 5).map((place) => place.id),
   ["near-confirmed"],
   "filterPlaces should only return places within the selected radius"
+);
+
+assert.strictEqual(
+  buildAmapNavigationUrl({
+    name: "亚朵酒店",
+    address: "江汉区示例路100号",
+    lat: 30.61,
+    lng: 114.31,
+  }),
+  "https://uri.amap.com/navigation?to=114.31,30.61,%E6%AD%A6%E6%B1%89%E4%BA%9A%E6%9C%B5%E9%85%92%E5%BA%97&mode=car&policy=1&src=PetsWeb&coordinate=gaode&callnative=1",
+  "navigation should target exact AMap coordinates and prefix Wuhan in the displayed destination name"
+);
+
+assert.strictEqual(
+  buildAmapNavigationUrl({
+    name: "亚朵酒店",
+    address: "江汉区示例路100号",
+  }),
+  "https://uri.amap.com/search?keyword=%E6%AD%A6%E6%B1%89%20%E4%BA%9A%E6%9C%B5%E9%85%92%E5%BA%97%20%E6%B1%9F%E6%B1%89%E5%8C%BA%E7%A4%BA%E4%BE%8B%E8%B7%AF100%E5%8F%B7&city=%E6%AD%A6%E6%B1%89",
+  "fallback search should still include Wuhan city context"
 );
 
 assert.deepStrictEqual(

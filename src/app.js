@@ -103,8 +103,7 @@ function getPosition(point) {
 }
 
 function buildNavUrl(place) {
-  const query = encodeURIComponent(`${place.name} ${place.address}`);
-  return `https://uri.amap.com/search?keyword=${query}&center=${place.lng},${place.lat}`;
+  return PlaceLogic.buildAmapNavigationUrl(place);
 }
 
 function getPlaceImageHtml(place) {
