@@ -122,6 +122,40 @@
           <a id="dialog-nav" target="_blank" rel="noreferrer">打开导航</a>
           <button id="feedback-button">提交带狗反馈</button>
         </div>
+        <form class="feedback-form" id="feedback-form" hidden>
+          <h3>真实场景反馈</h3>
+          <label>
+            到访结果
+            <select id="feedback-status" name="status" required>
+              <option value="allowed">成功带狗</option>
+              <option value="blocked">被阻止</option>
+              <option value="outdoor_only">只适合户外/路过</option>
+              <option value="uncertain">不确定</option>
+            </select>
+          </label>
+          <label>
+            到访日期
+            <input id="feedback-date" name="visitDate" type="date" required />
+          </label>
+          <label>
+            现场照片
+            <input id="feedback-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required />
+          </label>
+          <div class="feedback-preview" id="feedback-preview" hidden>
+            <img id="feedback-preview-image" alt="反馈照片预览" />
+          </div>
+          <label>
+            备注
+            <textarea
+              id="feedback-note"
+              name="note"
+              maxlength="300"
+              placeholder="例如：牵绳可进入、只允许户外座位、门口保安不让进等"
+            ></textarea>
+          </label>
+          <p class="feedback-status" id="feedback-status-message"></p>
+          <button type="submit">上传反馈</button>
+        </form>
       </div>
     </dialog>
 
