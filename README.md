@@ -50,7 +50,7 @@
 当前仓库已经按“静态前端 + 可选后端接口”拆开：
 
 - 前端：`index.html`、`styles.css`、`src/*`，继续部署到 GitHub Pages。
-- 后端：`api/search.js`，部署到 Vercel、Netlify Functions、Cloudflare Workers 或自己的 Node 服务。
+- 后端：`api/search.js`、`api/feedback.js`，部署到 Vercel、Netlify Functions、Cloudflare Workers 或自己的 Node 服务。
 - 测试：`tests/*`，用于校验筛选、排序、导航和后端返回结构。
 
 GitHub Pages 只能托管静态网页，不能运行 `api/search.js`。因此真实 Web 服务 Key 不应写进 GitHub Pages 前端文件里，而是配置到后端运行环境变量：
@@ -64,10 +64,12 @@ AMAP_WEB_SERVICE_KEY=你的高德 Web 服务 Key
 ```js
 window.PETS_BACKEND_CONFIG = {
   searchEndpoint: "https://your-vercel-app.vercel.app/api/search",
+  feedbackEndpoint: "https://your-vercel-app.vercel.app/api/feedback",
 };
 ```
 
 配置了 `searchEndpoint` 后，网页搜索会优先请求后端。后端不可用或未配置时，网页会自动回退到当前的高德 JS API 前端搜索。
+配置了 `feedbackEndpoint` 后，用户在地点详情里上传的真实场景反馈会提交到后端。未配置时，反馈只会暂存在当前浏览器本机。
 
 ### 后端接口职责
 
@@ -79,6 +81,27 @@ window.PETS_BACKEND_CONFIG = {
 - 复用 `src/placeLogic.js` 的筛选、去重、酒店优先级、宠物友好状态判断。
 - 请求高德步行/驾车路线，返回路线距离和当下驾车预估时间。
 - 对同一地址、半径、类别做 10 分钟内存缓存，减少重复请求。
+
+`api/feedback.js` 负责：
+
+- 接收地点详情页提交的真实场景反馈。
+- 校验反馈状态、到访日期、备注和照片。
+- 照片仅支持 JPG、PNG、WebP，大小不超过 3MB。
+- 通过 GitHub Contents API 写入后台记录：
+  - `feedback/records/*.json` 保存结构化反馈。
+  - `feedback/photos/*` 保存用户上传照片。
+- 新反馈默认 `reviewStatus: "pending"`，后续可以人工审核后再展示到前端。
+
+反馈后端需要配置环境变量：
+
+```text
+GITHUB_TOKEN=你的 GitHub fine-grained token
+GITHUB_OWNER=Syoyo-Ztoto
+GITHUB_REPO=PetsWeb
+GITHUB_BRANCH=main
+```
+
+`GITHUB_TOKEN` 需要对 `Syoyo-Ztoto/PetsWeb` 有 Contents 读写权限。不要把这个 Token 写进 `src/*` 或任何前端文件。
 
 当前前端使用的是高德 JS API：
 
@@ -106,4 +129,5 @@ window.PETS_BACKEND_CONFIG = {
 ```powershell
 & 'C:\Users\74731\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' tests\placeLogic.test.js
 & 'C:\Users\74731\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' tests\backendSearch.test.js
+& 'C:\Users\74731\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' tests\feedback.test.js
 ```
