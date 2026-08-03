@@ -5,8 +5,16 @@
     return String(config.searchEndpoint || "").trim();
   }
 
+  function getFeedbackEndpoint() {
+    return String(config.feedbackEndpoint || "").trim();
+  }
+
   function isReady() {
     return Boolean(getSearchEndpoint());
+  }
+
+  function canSubmitFeedback() {
+    return Boolean(getFeedbackEndpoint());
   }
 
   async function searchPlaces({ address, radiusKm, category }) {
@@ -29,8 +37,29 @@
     return data;
   }
 
+  async function submitFeedback(payload) {
+    const endpoint = getFeedbackEndpoint();
+    if (!endpoint) throw new Error("反馈后端接口未配置");
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "反馈提交失败");
+    }
+    return data;
+  }
+
   window.PetsBackend = {
+    canSubmitFeedback,
     isReady,
     searchPlaces,
+    submitFeedback,
   };
 })();
