@@ -68,7 +68,17 @@ const elements = {
   dialogUpdated: document.querySelector("#dialog-updated"),
   dialogNav: document.querySelector("#dialog-nav"),
   feedbackButton: document.querySelector("#feedback-button"),
+  feedbackForm: document.querySelector("#feedback-form"),
+  feedbackStatus: document.querySelector("#feedback-status"),
+  feedbackDate: document.querySelector("#feedback-date"),
+  feedbackPhoto: document.querySelector("#feedback-photo"),
+  feedbackPreview: document.querySelector("#feedback-preview"),
+  feedbackPreviewImage: document.querySelector("#feedback-preview-image"),
+  feedbackNote: document.querySelector("#feedback-note"),
+  feedbackStatusMessage: document.querySelector("#feedback-status-message"),
 };
+
+let activeDialogPlace = null;
 
 function resolveLocalOrigin(address) {
   const normalized = address.trim();
@@ -83,6 +93,48 @@ function resolveLocalOrigin(address) {
     lng: 114.3055,
     label: `${normalized || "武汉"}附近`,
   };
+}
+
+function getTodayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function setFeedbackMessage(message, tone) {
+  elements.feedbackStatusMessage.textContent = message || "";
+  if (tone) {
+    elements.feedbackStatusMessage.dataset.tone = tone;
+  } else {
+    delete elements.feedbackStatusMessage.dataset.tone;
+  }
+}
+
+function resetFeedbackForm(place) {
+  activeDialogPlace = place;
+  elements.feedbackForm.hidden = true;
+  elements.feedbackForm.reset();
+  elements.feedbackDate.value = getTodayDate();
+  elements.feedbackPreview.hidden = true;
+  elements.feedbackPreviewImage.removeAttribute("src");
+  setFeedbackMessage("", "");
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("照片读取失败"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function saveFeedbackLocally(payload) {
+  const key = "petsweb-feedback-drafts";
+  const drafts = JSON.parse(window.localStorage.getItem(key) || "[]");
+  drafts.push({
+    ...payload,
+    savedAt: new Date().toISOString(),
+  });
+  window.localStorage.setItem(key, JSON.stringify(drafts.slice(-20)));
 }
 
 function getPosition(point) {
@@ -403,6 +455,7 @@ async function resolveOrigin(address) {
 }
 
 function openDialog(place) {
+  resetFeedbackForm(place);
   elements.dialogImage.src =
     place.image && place.imageSource === "amap"
       ? place.image
@@ -417,11 +470,88 @@ function openDialog(place) {
   elements.dialogUpdated.textContent = place.updatedAt;
   elements.dialogNav.href = buildNavUrl(place);
   elements.feedbackButton.onclick = () => {
-    const message = `反馈入口示例：${place.name}\n\n正式上线时这里会提交：是否成功带狗、日期、是否被阻止、照片和备注。`;
-    window.alert(message);
+    elements.feedbackForm.hidden = !elements.feedbackForm.hidden;
+    if (!elements.feedbackForm.hidden) {
+      elements.feedbackStatus.focus();
+    }
   };
   elements.dialog.showModal();
 }
+
+elements.feedbackPhoto.addEventListener("change", async () => {
+  const file = elements.feedbackPhoto.files?.[0];
+  if (!file) {
+    elements.feedbackPreview.hidden = true;
+    elements.feedbackPreviewImage.removeAttribute("src");
+    return;
+  }
+
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    elements.feedbackPhoto.value = "";
+    elements.feedbackPreview.hidden = true;
+    setFeedbackMessage("照片格式仅支持 JPG、PNG 或 WebP。", "error");
+    return;
+  }
+
+  if (file.size > 3 * 1024 * 1024) {
+    elements.feedbackPhoto.value = "";
+    elements.feedbackPreview.hidden = true;
+    setFeedbackMessage("照片不能超过 3MB。", "error");
+    return;
+  }
+
+  const dataUrl = await fileToDataUrl(file);
+  elements.feedbackPreviewImage.src = dataUrl;
+  elements.feedbackPreview.hidden = false;
+  setFeedbackMessage("", "");
+});
+
+elements.feedbackForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!activeDialogPlace) return;
+
+  const file = elements.feedbackPhoto.files?.[0];
+  if (!file) {
+    setFeedbackMessage("请上传一张真实场景照片。", "error");
+    return;
+  }
+
+  const submitButton = elements.feedbackForm.querySelector('button[type="submit"]');
+  submitButton.disabled = true;
+  submitButton.textContent = "上传中...";
+  setFeedbackMessage("正在上传反馈...", "");
+
+  try {
+    const photoDataUrl = await fileToDataUrl(file);
+    const payload = {
+      placeId: activeDialogPlace.id,
+      placeName: activeDialogPlace.name,
+      placeAddress: activeDialogPlace.address,
+      category: activeDialogPlace.category,
+      status: elements.feedbackStatus.value,
+      visitDate: elements.feedbackDate.value || getTodayDate(),
+      note: elements.feedbackNote.value,
+      photoDataUrl,
+    };
+
+    if (window.PetsBackend?.canSubmitFeedback()) {
+      await window.PetsBackend.submitFeedback(payload);
+      setFeedbackMessage("反馈已上传，后台会记录照片并等待审核。", "success");
+      elements.feedbackForm.reset();
+      elements.feedbackDate.value = getTodayDate();
+      elements.feedbackPreview.hidden = true;
+    } else {
+      saveFeedbackLocally(payload);
+      setFeedbackMessage("反馈后端未配置，已暂存在本机浏览器。部署后端后可上传到后台。", "error");
+    }
+  } catch (error) {
+    console.error(error);
+    setFeedbackMessage(error.message || "反馈提交失败，请稍后再试。", "error");
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "上传反馈";
+  }
+});
 
 elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
