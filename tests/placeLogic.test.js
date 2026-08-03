@@ -99,6 +99,26 @@ assert.strictEqual(
 
 assert.strictEqual(
   isRelevantLeisurePlace({
+    name: "汉口江滩篮球场",
+    type: "体育休闲服务;运动场馆;篮球场馆",
+    category: "lawn",
+  }),
+  false,
+  "basketball courts should not appear as lawn or riverside dog-walking recommendations"
+);
+
+assert.strictEqual(
+  isRelevantLeisurePlace({
+    name: "滨江足球场",
+    type: "体育休闲服务;运动场馆;足球场",
+    category: "lawn",
+  }),
+  false,
+  "sports fields with riverside keywords should not appear as leisure dog-walking places"
+);
+
+assert.strictEqual(
+  isRelevantLeisurePlace({
     name: "汉口江滩幼儿园",
     type: "科教文化服务;学校;幼儿园",
     category: "lawn",
