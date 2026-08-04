@@ -93,4 +93,38 @@ assert.deepStrictEqual(
 assert.strictEqual(response.places[0].petStatus, "confirmed");
 assert.strictEqual(response.places[0].imageSource, "amap");
 
+const petResponse = buildSearchResponse({
+  origin: { lat: 30.544, lng: 114.306, label: "黄鹤楼附近" },
+  radiusKm: 5,
+  category: "pet",
+  rawPois: [
+    {
+      id: "WINE",
+      name: "京东酒世界",
+      location: "114.306,30.544",
+      type: "购物服务;专卖店;烟酒专卖店",
+      address: "武汉市武昌区黄鹤楼附近",
+      tel: "027-99999999",
+      photos: [],
+      __keyword: "宠物服务",
+    },
+    {
+      id: "PET-SHOP",
+      name: "黄鹤楼萌宠生活馆",
+      location: "114.307,30.545",
+      type: "生活服务;宠物服务;宠物服务",
+      address: "武汉市武昌区示例路",
+      tel: "027-66666666",
+      photos: [],
+      __keyword: "宠物服务",
+    },
+  ],
+});
+
+assert.deepStrictEqual(
+  petResponse.places.map((place) => place.name),
+  ["黄鹤楼萌宠生活馆"],
+  "backend pet-service responses should remove unrelated retail POIs from broad AMap results"
+);
+
 console.log("backend search tests passed");
