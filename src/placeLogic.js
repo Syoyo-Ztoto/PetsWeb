@@ -86,7 +86,7 @@
 
   function isRejectedPoi(place) {
     const text = `${place.name || ""} ${place.type || ""} ${place.address || ""}`;
-    return /停车|车库|加油|加气|充电站|维修|洗车|幼儿园|学校|小学|中学|大学|培训|早教|亲子|健康|调理|养生|美容院|诊所|门诊|药房|医院|厕所|卫生间|地铁站|公交|派出所|警务|银行|证券|保险|办事处|政务|政府|机关|委员会|街道办|社区服务|公司|企业|产业园|写字楼|住宅|小区|公寓|入口|出口|售票|收费站|服务中心|管理处|营业厅|网点|仓库|物流|码头|货运|篮球|足球|网球|羽毛球|乒乓|排球|台球|高尔夫|游泳|健身|跆拳道|武术|轮滑|滑板|体育馆|体育场|运动场|运动馆|球场|球馆|运动场馆/.test(text);
+    return /停车|车库|加油|加气|充电站|维修|洗车|幼儿园|学校|小学|中学|大学|培训|早教|亲子|健康|调理|养生|美容院|诊所|门诊|药房|医院|厕所|卫生间|地铁站|公交|派出所|警务|银行|证券|保险|办事处|政务|政府|机关|委员会|街道办|社区服务|公司|企业|产业园|写字楼|住宅|小区|公寓|入口|出口|售票|收费站|服务中心|管理处|营业厅|网点|仓库|物流|码头|货运|烟酒|酒世界|酒类专卖|名酒|酒行|彩票|便利店|超市|生鲜|副食|成人用品|篮球|足球|网球|羽毛球|乒乓|排球|台球|高尔夫|游泳|健身|跆拳道|武术|轮滑|滑板|体育馆|体育场|运动场|运动馆|球场|球馆|运动场馆/.test(text);
   }
 
   function isRelevantLeisurePlace(place) {
@@ -101,6 +101,9 @@
     }
     if (category === "restaurant") {
       return isRelevantPetFriendlyRestaurantPlace(place);
+    }
+    if (category === "pet") {
+      return isRelevantPetServicePlace(place);
     }
     if (category === "hotel") {
       return isRelevantHotelPlace(place);
@@ -124,6 +127,12 @@
     if (isRejectedPoi(place)) return false;
     const text = `${place.name || ""} ${place.type || ""} ${place.address || ""} ${place.petPolicyNote || ""}`;
     return isExplicitPetFriendlyText(text) && /咖啡|餐饮|餐厅|西餐|火锅|茶饮|露台|户外座位|酒吧|小酒馆|烘焙|甜品/.test(text);
+  }
+
+  function isRelevantPetServicePlace(place) {
+    if (isRejectedPoi(place)) return false;
+    const text = `${place.name || ""} ${place.type || ""} ${place.address || ""}`;
+    return /宠物服务|宠物店|宠物医院|宠物诊所|宠物美容|宠物寄养|宠物训练|宠物用品|宠物乐园|萌宠|犬舍|猫舍|猫咖|犬|猫/.test(text);
   }
 
   function isRelevantHotelPlace(place) {
@@ -258,9 +267,10 @@
   }
 
   function pickCategory(poi, keyword) {
-    const text = `${poi.name || ""} ${poi.type || ""} ${keyword || ""}`;
+    const poiText = `${poi.name || ""} ${poi.type || ""} ${poi.address || ""}`;
+    const text = `${poiText} ${keyword || ""}`;
 
-    if (/宠物服务|宠物店|宠物医院|宠物美容|宠物寄养|萌宠|犬舍|猫舍/.test(text)) {
+    if (/宠物服务|宠物店|宠物医院|宠物诊所|宠物美容|宠物寄养|宠物训练|宠物用品|宠物乐园|萌宠|犬舍|猫舍|猫咖/.test(poiText)) {
       return { category: "pet", categoryLabel: "宠物服务" };
     }
     if (/酒店|宾馆|住宿|民宿|公寓酒店|旅馆|客栈/.test(text)) {
