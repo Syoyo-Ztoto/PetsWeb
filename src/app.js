@@ -27,7 +27,7 @@ const CATEGORY_KEYWORDS = {
   lawn: ["江滩公园", "草坪公园", "滨江公园"],
   park: ["公园", "绿道", "风景区"],
   mall: ["商场", "购物中心", "商圈"],
-  restaurant: ["宠物友好咖啡", "可带狗餐厅", "咖啡"],
+  restaurant: ["宠物友好咖啡", "可带狗餐厅", "宠物友好餐厅", "可携宠咖啡"],
   hotel: ["宠物友好酒店", "可带狗民宿", "携宠民宿"],
   pet: ["宠物服务", "宠物医院", "宠物美容"],
 };
@@ -288,7 +288,10 @@ function renderCards(places) {
   if (places.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = `当前半径内没有匹配的${CATEGORY_LABELS[state.category]}。可以扩大到 10 或 20 公里再试。`;
+    empty.textContent =
+      state.category === "restaurant"
+        ? `所选地点附近 ${state.radiusKm} 公里无明确宠物友好餐饮。`
+        : `当前半径内没有匹配的${CATEGORY_LABELS[state.category]}。可以扩大到 10 或 20 公里再试。`;
     elements.resultsList.append(empty);
     return;
   }
