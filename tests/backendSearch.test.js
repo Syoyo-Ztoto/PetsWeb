@@ -12,6 +12,12 @@ assert.deepStrictEqual(
 );
 
 assert.deepStrictEqual(
+  getCategoryKeywords("restaurant"),
+  ["宠物友好咖啡", "可带狗餐厅", "宠物友好餐厅", "可携宠咖啡"],
+  "restaurant backend search should avoid broad generic cafe searches"
+);
+
+assert.deepStrictEqual(
   parseSearchParams({
     address: "武汉天地",
     radius: "50",
