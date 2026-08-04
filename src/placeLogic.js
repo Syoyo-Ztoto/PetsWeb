@@ -99,6 +99,9 @@
     if (category === "lawn" || category === "park") {
       return isRelevantLeisurePlace(place);
     }
+    if (category === "restaurant") {
+      return isRelevantPetFriendlyRestaurantPlace(place);
+    }
     if (category === "hotel") {
       return isRelevantHotelPlace(place);
     }
@@ -115,6 +118,12 @@
 
   function isOrdinaryChainHotel(text) {
     return /亚朵|全季|汉庭|如家|锦江之星|城市便捷|维也纳|麗枫|丽枫|希尔顿|万豪|洲际|皇冠假日|香格里拉|凯悦|喜来登|宜必思|桔子酒店|速8|7天|七天|格林豪泰|尚客优|美居|铂尔曼|诺富特/.test(text);
+  }
+
+  function isRelevantPetFriendlyRestaurantPlace(place) {
+    if (isRejectedPoi(place)) return false;
+    const text = `${place.name || ""} ${place.type || ""} ${place.address || ""} ${place.petPolicyNote || ""}`;
+    return isExplicitPetFriendlyText(text) && /咖啡|餐饮|餐厅|西餐|火锅|茶饮|露台|户外座位|酒吧|小酒馆|烘焙|甜品/.test(text);
   }
 
   function isRelevantHotelPlace(place) {
