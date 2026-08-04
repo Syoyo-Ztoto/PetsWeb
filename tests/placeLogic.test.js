@@ -377,6 +377,60 @@ assert.strictEqual(
   "pet services should not ask users to confirm whether pets are allowed"
 );
 
+const normalizedIrrelevantPetKeywordPoi = normalizeAmapPoi(
+  {
+    id: "B0FFWINE",
+    name: "京东酒世界",
+    location: "114.306,30.544",
+    type: "购物服务;专卖店;烟酒专卖店",
+    address: "武汉市武昌区黄鹤楼附近",
+    tel: "027-99999999",
+    photos: [],
+  },
+  "宠物服务"
+);
+
+assert.notStrictEqual(
+  normalizedIrrelevantPetKeywordPoi.category,
+  "pet",
+  "search keywords alone should not make unrelated POIs pet services"
+);
+
+assert.strictEqual(
+  isRelevantPlaceForCategory(
+    {
+      ...normalizedIrrelevantPetKeywordPoi,
+      category: "pet",
+    },
+    "pet"
+  ),
+  false,
+  "irrelevant retail POIs from pet-service searches should be filtered out"
+);
+
+assert.deepStrictEqual(
+  filterPlaces(
+    [
+      {
+        ...normalizedIrrelevantPetKeywordPoi,
+        category: "pet",
+        lat: 30.544,
+        lng: 114.306,
+      },
+      {
+        ...normalizedPetServicePoi,
+        lat: 30.6,
+        lng: 114.32,
+      },
+    ],
+    wuhanCenter,
+    20,
+    "pet"
+  ).map((place) => place.id),
+  ["amap-B0FFPET"],
+  "pet-service filtering should keep real pet services and remove obvious mismatches"
+);
+
 const normalizedPetRestaurantPoi = normalizeAmapPoi(
   {
     id: "B0FFDOGCAFE",
