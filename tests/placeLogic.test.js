@@ -397,6 +397,49 @@ assert.strictEqual(
 );
 assert.strictEqual(getStatusLabel(normalizedPetRestaurantPoi), "有狗狗肩高/座位限制");
 
+const normalizedPlainRestaurantPoi = normalizeAmapPoi(
+  {
+    id: "B0FFPLAINCAFE",
+    name: "普通咖啡店",
+    location: "114.331,30.601",
+    type: "餐饮服务;咖啡厅;咖啡厅",
+    address: "武汉市武昌区普通路11号",
+    tel: "027-44444444",
+    photos: [],
+  },
+  "咖啡"
+);
+
+assert.strictEqual(normalizedPlainRestaurantPoi.category, "restaurant");
+assert.strictEqual(normalizedPlainRestaurantPoi.petStatus, "unverified");
+assert.strictEqual(
+  isRelevantPlaceForCategory(normalizedPlainRestaurantPoi, "restaurant"),
+  false,
+  "restaurant results should only include places explicitly marked pet-friendly"
+);
+
+assert.deepStrictEqual(
+  filterPlaces(
+    [
+      {
+        ...normalizedPlainRestaurantPoi,
+        lat: 30.601,
+        lng: 114.331,
+      },
+      {
+        ...normalizedPetRestaurantPoi,
+        lat: 30.6,
+        lng: 114.33,
+      },
+    ],
+    wuhanCenter,
+    20,
+    "restaurant"
+  ).map((place) => place.id),
+  ["amap-B0FFDOGCAFE"],
+  "restaurant filtering should exclude ordinary cafes and keep explicit pet-friendly restaurants"
+);
+
 const mergedPlaces = mergePlaces(
   [
     {
